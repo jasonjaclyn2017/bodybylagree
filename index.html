@@ -1,87 +1,1073 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Body by Lagree - Coming Soon</title>
+    <meta name="color-scheme" content="sand">
+    <title>Body by Lagree Society</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="pico/pico.classless.sand.min.css"/>
     <style>
-        /* Simple styling to center content and add basic aesthetic */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-image: url('ps_neutral_2.png');
-            color: #333;
-            position: relative;
+        :root {
+            --pico-font-family: Manrope;
+            main, header {
+                margin: 0px auto;
+            }
+
+            html {
+                overflow-x: hidden;
+            }
+            header {
+                padding: 20px 0px 15px 0px;
+                width: 99vw;
+                max-width: 99vw;
+            }
+            body {
+            
+            }
+
+            article {
+                border-radius: 12px;
+                background: #2a2619;
+            }
+
+            table, td {
+                background: none;
+                vertical-align: top;
+            }
+        }
+        a { text-decoration: none; }
+        h1, h2, h3 {
+            --pico-font-weight: 200;
         }
 
-        .container {
-            margin-top: -20%;
-            text-align: center;
-            padding: 20px;
-            border-radius: 12px;
-        }
-        h2 {
-            font-size: 1.2em;
-            color: #111;
-            margin: 0;
-            padding: 0;
-        }
         p {
-            font-size: 1.2em;
-            color: #111;
+            --pico-color: #d1cbc1;
         }
 
-        a {
-            text-decoration: none;
-            color: #006;
-            font-style: italic;
+        body {
+            min-height: 100vh;
+            background: #111;
+            overflow-x: hidden;
         }
 
-        a:active {
-            color: #369;
+        header { 
+            flex-shrink: 0;
+            text-align: center;
+            background: #040404;
+            position: relative;
+            img {
+                height: 100px;
+            }
         }
 
-        a:hover {
-            text-decoration: underline;
+        header .left {
+            position: absolute;
+            left: 20px;
+            top: 40%;
+            transform: translateY(-40%);
+            text-align: left;
         }
         
-        /* Vignette overlays at top and bottom edges */
-        .top_vignette,
-        .bottom_vignette {
+        header .right {
+            position: absolute;
+            right: 40px;
+            top: 40%;
+            transform: translateY(-40%);
+            text-align: right;
+            font-size: 0.8rem;
+        }
+
+        details summary {
+            padding: 10px;
+            border-radius: 5px;
+            &:hover {
+                background: #222;
+                cursor: pointer;
+            }
+        }
+
+        details p {
+            padding: 15px 25px;
+            border: solid 1px #333;
+            background: #000;
+            border-radius: 20px;
+            margin-left: 15px;
+        }
+        ul li {
+            list-style-type: disc;
+        }
+
+        .splash {
+            background: #040404;
+            background-size: 120%;
+            background-position: center, 90% 50%;
+            height: 50vw;
+            width: 100vw;
+            max-height: 100vw;
+            padding: 20px 20px 40px 20px;
+            user-select: none;
+            position: relative;
+
+            h1 {
+                font-weight: 200;
+                color: #665544;
+                filter: drop-shadow(0px 0px 1px #fff);
+                font-size: 3.6rem;
+                span {
+                    opacity: 0;
+                }
+            }
+        }
+
+/*
+        .splash:before {
+            position: absolute;
+            top: -4px;
+            left: 0px;
+            content: "";
+            display: block;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #c9b086 0%, #333 45%, #333 65%, #c9b086 100%); 
+            margin-bottom: 1px;
+        }
+        */
+        .splash:after {
+            position: absolute;
+            bottom: -4px;
+            left: 0px;
+            content: "";
+            display: block;
+            width: 100%;
+            height: 2px;
+            /* Gradient from a gold-ish tone to transparent */
+            background: linear-gradient(90deg, #c9b086 0%, #666 45%, #666 65%, #c9b086 100%); 
+            margin-bottom: 1px;
+        }
+
+        @property --gradient-angle {
+            syntax: '<angle>';
+            initial-value: 170deg;
+            inherits: false;
+        }
+        @property --gradient-angle-2 {
+            syntax: '<angle>';
+            initial-value: 45deg;
+            inherits: false;
+        }
+
+        .lagreeinfo {
+            max-width: 430px;
+        }
+
+        .lagreeinfo article {
+            background: transparent;
+        }
+        .offers article {
+            background: #181818;
+            border: 1px solid transparent;
+            border-radius: 16px;
+            background-image: linear-gradient(#111, #181818), linear-gradient(var(--gradient-angle-2), #444 0%, #333 45%, #333 65%, #444 100%);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;  
+            box-shadow: 0px 2px 8px 2px rgba(0, 0, 0, 0.85);
+        }
+        
+        .faq article {
+            background: #111;
+        }
+        a.linkbubble {
+            --gradient-angle: 170deg;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            border-radius: 16px;
+            background-image: linear-gradient(#111, #111), linear-gradient(var(--gradient-angle), #c9b086 0%, #333 45%, #333 65%, #c9b086 100%);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            display: inline-block;
+            text-decoration: none;
+            color: #d9c096;
+            text-transform:uppercase;
+            transition: --gradient-angle 0.5s ease, color 0.5s ease !important;
+        }
+
+        a.linkbubble:hover {
+            --gradient-angle: 210deg;
+            color: #fff;
+        }
+
+        .grid article img {
+            width: 100%;
+            margin-bottom: 30px;
+            border-radius: 15px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .offers article {
+            display: flex;
+            flex-direction: column;
+        }
+        .offers a {
+            margin: 20px 5px 5px 5px;
+            margin-top: auto;
+            align-self: flex-start;
+        }
+
+        .offers td {
+            line-height: 0.5rem;
+            border: none;
+            padding: 9px 0px 9px 5px;
+        }
+        .offers small {
+            margin-top: 10px;
+            margin-bottom: 14px;
+            margin-left: 30px;
+        }
+        .offers td:first-child {
+            width: 180px;
+        }
+        small {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .aboutlagree {
+            background-color: #000;
+            background-image: url(machine-1.jpg);
+            background-repeat: no-repeat;
+            background-size: 700px;
+            background-position: left calc(50% + 100px) top 40%;
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            margin-left: -50vw;
+            padding-left: max(calc(50vw - 50%), 20px);
+            padding-right: max(calc(50vw - 50%), 20px);
+            padding-top: var(--pico-block-spacing-vertical);
+            padding-bottom: var(--pico-block-spacing-vertical);
+            mask-image: linear-gradient(to bottom, transparent, black 50px, black calc(100% - 50px), transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 50px, black calc(100% - 50px), transparent);
+            padding-top: 40px;
+            padding-bottom: 40px;
+        }
+
+        .recovery {
+            position: relative;
+            z-index: 0;
+            background-color: #111;
+            min-height: 350px;
+            overflow: hidden;
+
+            p {
+
+            }
+        }
+
+        .recovery-bg {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 55%;
+            background: url(sauna-woman.jpg) no-repeat 67% 20% / 180% auto;
+            z-index: -2;
+            transform-origin: 100% 20%;
+            opacity: 1;
+        }
+
+        .recovery::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(to right, rgba(18,18,18,0.9) 55%, transparent 75%), linear-gradient(to bottom, #111 0%, transparent 15%, transparent 85%, #111 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+        @media (max-width: 670px) {
+            header {
+                .left {
+                    display: none;
+                }
+                text-align: left;
+                img {
+                    margin-left: -100px;
+                }
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                img {
+                    height: 80px;
+                }
+            }
+            .aboutlagree {
+                background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url(machine-1.jpg);
+                background-size: 100% 100%, 700px;
+                background-position: 0 0, left calc(50% + 100px) top 40%;
+            }
+            .recovery-bg {
+                width: 100%;
+            }
+        }
+        @media (min-width: 768px) {
+            .aboutlagree {
+                background-position: left calc(15% + 420px) top 0%;
+            }
+
+            .recovery p {
+                width: 65%;
+            }
+            .recovery-bg {
+                opacity: 1;
+            }
+        }
+        @media (min-width: 1024px) {
+            .aboutlagree {
+                background-position: left calc(50% + 360px) top 25%;
+                background-size: min(80%, 1050px);
+            }
+            .lagreeinfo {
+                max-width: 432px;
+            }
+            .recovery-bg {
+            background: url(sauna-woman.jpg) no-repeat center 20% / 125% auto;
+            }
+        }
+        @media (min-width: 1280px) {
+            .aboutlagree {
+                background-position: left calc(50% + 420px) top 10%;
+            }
+            .lagreeinfo {
+                max-width: 40%;
+            }
+            .recovery-bg {
+                background-size: 100%;
+            }
+        }
+
+        @media (min-width: 1530px) {
+            .aboutlagree {
+                background-position: left calc(50% + 420px) top 10%;
+            }
+        }
+        @media (min-width: 860px) {
+            .grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .grid.col2 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .splash h1 {
+                font-size: 3rem;
+            }
+        }
+        
+        @media (max-width: 650px) {
+            .splash h1 {
+                font-size: 2.4rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .splash h1 {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .splash {
+                min-height: min(512px, 90vw);
+            }
+            .splash > div {
+                background-size: cover !important;
+            }
+        }
+
+        /* Sticky Header Animation */
+        header.floating-header {
             position: fixed;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 60px;
-            pointer-events: none;
-            z-index: 1;
+            max-width: 100%;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: opacity 200ms ease-out, transform 200ms ease-out;
+            background: rgba(4, 4, 4, 0.70);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin: 0;
         }
-
-        .top_vignette {
-            top: 0;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent);
-        }
-
-        .bottom_vignette {
-            bottom: 0;
-            background: linear-gradient(0deg, rgba(0, 0, 0, 0.35), transparent);
+        header.floating-header.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
-    <div class="top_vignette">
+    <header>
+        <div class="left">
+            <em>Coming soon in 2026.</em>
+        </div>
 
-    </div>
-    <div class="bottom_vignette">
+        <img src="bbl-society-logo-3.png"/>
+
+        <div class="right">
+        <!--
+            <a href="javascript:void();" class="linkbubble">Sign In</a>
+            -->
+
+            <strong>We're looking for trainers!</strong>
+            <Br/>
+            <a href="mailto:support@bodybylagree.studio" target="_blank">support@bodybylagree.studio</a>
+            <br/>
+            <a href="https://www.instagram.com/bblsociety.satx/" target="_blank">[◉°] : @bblsociety.satx</a>
+        </div>
+    </header>
+    <section class="splash">
+
+    </section>
+    <main>
+        <section class="aboutlagree">
+
+            <h2>What is Lagree?</h2>
+
+            <div class="lagreeinfo">
+                <article class="lagreeinfo-1">
+                    <h3>Strength Training</h3>
+                    Spring-based resistance, maximum challenge throughout the whole range of motion.
+                </article>
+                <article class="lagreeinfo-2">
+                    <h3>Low-Impact</h3>
+                    Protect your joints while pushing your muscles to their absolute limit.
+                </article>
+            </div>
+        </section>
+        <section class="lagreedescription">
+                <p>The Lagree Method is a scientifically engineered workout that combines strength, endurance,
+                    core, balance, and flexibility into every class. Performed on a specialized machine known
+                    as the Megaformer, Lagree uses controlled, slow movements to maximize muscle activation — 
+                    targeting multiple muscle groups simultaneously while protecting your joints. 
+                </p>
+                <p>
+                    Unlike traditional workouts that burn out quickly or risk injury, Lagree is intense on muscles
+                    yet gentle on the body. You’ll feel the challenge during class and see continuous improvement
+                    in strength, tone, and endurance with consistency. 
+                </p>
+
+
+            <a href="https://www.lagreefitness.com/the-lagree-method" target="_blank" class="linkbubble">Learn More at lagreefitness.com</a>
+        </section>
+        <hr/>
         
-    </div>
-    <div class="container">
-        <img src="bbl-logo-dark.png" alt="Body by Lagree Logo" style="max-width: 50%; height: auto;">
-        <h2>Coming soon to North San Antonio, TX.</h2>
-        <p style="margin-top:2rem;">Interested in becoming Lagree certified?  Contact us at <a href="mailto:support@bodybylagree.studio">support@bodybylagree.studio</a></p>
-    </div>
+        <section class="recovery">
+            <div class="recovery-bg"></div>
+            <h2>Training Meets Recovery</h2>
+            <p>Maximize your results with our Sunlighten mPulse smart sauna, 
+               featuring patented technology that combines red light with all three infrared wavelengths.
+            </p>
+            <p>This medical-grade heat penetrates deep into your tissue to accelerate muscle repair,
+            boost metabolism, and stimulate collagen. It is the ultimate restorative finish to your Lagree session, 
+            helping you detoxify and return to the Megaformer stronger.</p>
+
+            <a href="javascript:;" class="linkbubble">
+                Infrared Sauna FAQ
+            </a>
+        </section>
+
+        <hr/>
+        <section>
+            <h2>Pricing</h2>
+            <div class="offers grid col2">
+                <article>
+                    <h3>New Members Offer</h3>
+                    <ul>
+                        <li><strong>$60</strong> for your first <strong>3</strong> classes</li>
+                    </ul>
+                    <a href="javascript:void(0);" class="linkbubble">Schedule a class</a>
+                </article>
+                <article>
+                    <h3>Standard Pricing</h3>
+                    <table>
+                        <tbody>
+                        <tr>
+                            <td>Single class:</td>
+                            <td>$35</td>
+                        </tr>
+                        <tr>
+                            <td>4-pack:</td>
+                            <td>$128</td>
+                        </tr>
+                        <tr>
+                            <td>8-pack:</td>
+                            <td>$232</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <small>Class credits expire 52 weeks after purchase</small>
+                    <a href="javascript:void(0);" class="linkbubble">Purchase class packs</a>
+                </article>
+                <article>
+                    <h3>Founding Membership</h3>
+                    <p>Limited Time Only</p>
+                    <table>
+                        <tbody>
+                        <tr>
+                            <td>Unlimited:</td>
+                            <td>$220</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <small>
+                           Billed every 4 weeks, cancel anytime.  <br/>
+                           $20 no-show fee.      
+                    </small>
+                    <a href="javascript:void(0);" class="linkbubble">Join the society</a>
+                </article>
+                
+                <article>
+                    <h3>Memberships</h3>
+                    <table>
+                        <tbody>
+                        <tr>
+                            <td>4-classes:</td>
+                            <td>$108<small>($27 per class)</small></td>
+                        </tr>
+                        <tr>
+                            <td>8-classes:</td>
+                            <td>$184<small>($23 per class)</small></td>
+                        </tr>
+                        <tr>
+                            <td>Unlimited:</td>
+                            <td>$260</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <small>
+                           Billed every 4 weeks, 24-week commitment.  <br/>
+                           Recurring credits expire after 8 weeks.    
+                    </small>
+                    <a href="javascript:void(0);" class="linkbubble">Join the society</a>
+                </article>
+
+                <article>
+                    <h3>Free Classes</h3>
+                    <p>Join us for our free community classes, where we train our trainers and refine our process.</p>
+                    <p>Select dates and times only.</p>
+                    <a href="javascript:void(0);" class="linkbubble">Community Class Schedule</a>
+                
+                </article>
+
+                <article>
+                    <h3>Infrared Sauna</h3>
+                    <p>45-minute sessions</p>
+                    <table>
+                        <tbody>
+                        <tr>
+                            <td>Non-members:</td>
+                            <td>$50</td>
+                        </tr>
+                        <tr>
+                            <td>Members:</td>
+                            <td>$25</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <small>Recurring sauna credits bill with membership, expire after 8 weeks, change anytime.</small>
+                </article>
+            </div>
+        </section>
+        <!-- 
+        <hr/>
+        <section>
+            <h2>Testimonials</h2>
+             <ul>
+                <li>
+                    “Lagree completely changed my fitness routine — I’ve never felt stronger or more confident.”
+                    — Happy Member
+                </li>
+                <li>
+                    “You feel the difference in every muscle. It’s intense, effective, and addictive!”
+                    — Studio Enthusiast
+                </li>
+             </ul>
+        </section>
+        -->
+        <hr/>
+        <section class="faq">
+            <div class="grid col2">
+
+                <article>
+                    <h2>Lagree FAQ</h2>
+                    <details>
+                        <summary>
+                            Do I need prior experience?
+                        </summary>
+                        <p>
+                            No — Lagree classes are designed for all fitness levels and can be scaled to match your ability.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>How long are classes?</summary>
+                        <p>
+                            Most classes are 45 minutes — efficient, challenging, and a great fit for busy lifestyles. 
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>Is Lagree the same as Pilates?</summary>
+                        <p>
+                            While both use a carriage and springs, Lagree focuses more on 
+                            high-intensity strength training and muscular endurance through 
+                            slower movements and shorter transitions.
+                            <br/>
+                            <a href="https://www.lagreefitness.com/lagree-vs-pilates" target="_blank">Learn more from lagreefitness.com</a>
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>How many times a week should I do Lagree?</summary>
+                        <p>
+                            Because of the high intensity and muscle fatigue, we recommend 
+                            starting at 2 sessions per week and adding more if recovery is good.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>What do I need to bring?</summary>
+                        <p>
+                            Grip socks are required, and are available for purchase at the studio.  We also provide water, ice, and towels.
+                        </p>
+                    </details>
+                </article>
+
+                <article>
+                    <h2>Infrared Sauna FAQ</h2>
+                    <details>
+                        <summary>
+                            What do I wear?
+                        </summary>
+                        <p>
+                           To enable infrared to penetrate tissues as deep as possible, we recommend wearing as little as
+                            possible. A cotton towel, gym shorts or swimsuit are perfect options. We offer bath towels and body
+                            wraps infused with CELLIANT that reflect the body’s infrared back into the body, enhancing and
+                            extending the benefits of infrared before, during, and after your session.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>
+                            How often should I use the sauna?
+                        </summary>
+                        <p>
+                            One session will leave you feeling refreshed and rejuvenated. But similar to exercise, the more you do
+                            it, the better the results. Recommended use is 3-4 times per week for 30-40 minutes.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>
+                            When will I start sweating?
+                        </summary>
+                        <p>
+                            Sweat levels are different for everyone. Don’t be surprised if you don’t sweat during the first few
+                            sessions. Sweating will increase with regular use. Even if your body is not drenched in sweat, your body
+                            is still detoxifying from harmful toxins. Also, be sure to drink plenty of water before your session. If you
+                            are dehydrated, you will not sweat as much.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>
+                            Do I need a doctor’s note?
+                        </summary>
+                        <p>
+                            No. If you have health concerns, we recommend speaking with your doctor before your sauna session.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>
+                            Can I take my cell phone into the sauna?
+                        </summary>
+                        <p>
+                            Just as you would not leave your cell phone in your car on a hot day, we do not recommend taking
+                            cells phones, Apple watches, or other electronics in the sauna. The electronics that are built into the
+                            sauna are designed for a heated environment.
+                        </p>
+                    </details>
+
+                    <details>
+                        <summary>
+                            Can I sauna while pregnant?
+                        </summary>
+                        <p>
+                            Even though infrared is completely safe, it is not recommended to use while pregnant. While pregnant,
+                            the core body temperature is already elevated, and you could overheat.
+                        </p>
+                    </details>
+                </article>
+            </div>
+        </section>
+        <hr/>
+    </main>
+    <footer>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script type="text/javascript">
+        const splash_frames = [
+            {
+                image: 'splash-strong.jpg',
+                backgroundSize: '120%',
+                backgroundPosition: 'center, 90% 50%',
+                backgroundPosition1024: 'center, 50% 50%',
+                duration: 5000,
+                backgroundDriftX: 50,
+                text: 'Strong',
+                textIntroDelay: 600,
+                textTranslateX: -40,
+                textTranslateY: 0,
+                textMargin: '7% 0% 0% 10%',
+            },
+            {
+                image: 'splash-sculpted.jpg',
+                backgroundSize: '120%',
+                backgroundPosition: 'center, 80% 50%',
+                backgroundPosition640: 'center, 60% 50%',
+                backgroundDriftX: -50,
+                duration: 5000,
+                text: 'Sculpted',
+                textIntroDelay: 600,
+                textTranslateX: 30,
+                textTranslateY: 0,
+                textMargin: '6% 0% 0% 62%',
+            },
+            {
+                image: 'splash-balanced.jpg',
+                backgroundSize: '150%',
+                backgroundPosition: 'center, 90% 50%',
+                backgroundPosition640: 'center, 80% 50%',
+                backgroundDriftX: 40,
+                duration: 5000,
+                text: 'Balanced',
+                textIntroDelay: 600,
+                textTranslateX: 0,
+                textTranslateY: -30,
+                textMargin: '6% 0% 0% 65%',
+            },
+        ];
+
+        const FADE_TIME = 1200;
+        const TEXT_FADE_TIME = 2400;
+        const CROSSFADE_TIME = 0;
+        function SplashLoop(container, frames) {
+            container.innerHTML = '';
+            container.style.position = 'relative';
+
+            const domFrames = frames.map(frame => {
+                const div = document.createElement('div');
+                div.style.position = 'absolute';
+                div.style.top = '0';
+                div.style.left = '0';
+                div.style.width = '100%';
+                div.style.height = '100%';
+                div.style.opacity = '0';
+                div.style.padding = '20px 20px 40px 20px';
+                div.style.boxSizing = 'border-box';
+                div.style.zIndex = '0';
+                
+                div.style.background = `radial-gradient(transparent 70%, rgba(0,0,0,0.4)), url(${frame.image}) no-repeat, #b7babf`;
+                div.style.backgroundSize = frame.backgroundSize;
+                div.style.backgroundPosition = frame.backgroundPosition;
+
+                const h1 = document.createElement('h1');
+                h1.innerHTML = frame.text;
+                h1.style.opacity = '0';
+                h1.style.transform = `translate(${frame.textTranslateX}px, ${frame.textTranslateY}px)`;
+                h1.style.margin = frame.textMargin;
+
+                div.appendChild(h1);
+                container.appendChild(div);
+                return { div, h1, config: frame };
+            });
+
+            let currentIndex = 0;
+
+            function runSequence() {
+                const current = domFrames[currentIndex];
+                
+                // Determine background position based on screen width
+                let bgPos = current.config.backgroundPosition;
+                if (window.innerWidth < 1024 && current.config.backgroundPosition1024) {
+                    bgPos = current.config.backgroundPosition1024;
+                }
+                if (window.innerWidth < 640 && current.config.backgroundPosition640) {
+                    bgPos = current.config.backgroundPosition640;
+                }
+                // Reset state
+                current.div.style.transition = 'none';
+                current.div.style.opacity = '0';
+                current.div.style.zIndex = '10';
+                current.div.style.backgroundPosition = bgPos;
+                
+                current.h1.style.transition = 'none';
+                current.h1.style.opacity = '0';
+                current.h1.style.transform = `translate(${current.config.textTranslateX}px, ${current.config.textTranslateY}px)`;
+                
+                void current.div.offsetWidth; // Force reflow
+
+                // Fade In & Drift
+                const driftDuration = FADE_TIME + current.config.duration + FADE_TIME;
+                current.div.style.transition = `opacity ${FADE_TIME}ms ease-in-out, background-position ${driftDuration}ms linear`;
+                current.div.style.opacity = '1';
+                
+                const drift = current.config.backgroundDriftX;
+                const [gradPos, imgPos] = bgPos.split(',');
+                const parts = imgPos.trim().split(' ');
+                const imgY = parts.pop();
+                const imgX = parts.join(' ');
+                current.div.style.backgroundPosition = `${gradPos}, calc(${imgX} + ${drift}px) ${imgY}`;
+
+                // Text Animation
+                setTimeout(() => {
+                    current.h1.style.transition = `opacity ${TEXT_FADE_TIME}ms ease-out, transform ${TEXT_FADE_TIME}ms ease-out`;
+                    current.h1.style.opacity = '1';
+                    current.h1.style.transform = 'translate(0,0)';
+                }, FADE_TIME + current.config.textIntroDelay);
+
+                // Fade Out & Next
+                setTimeout(() => {
+                    //current.div.style.transition = `opacity ${FADE_TIME}ms ease-in-out`;
+                    current.div.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        current.div.style.zIndex = '0';
+                        currentIndex = (currentIndex + 1) % domFrames.length;
+                        runSequence();
+                    }, CROSSFADE_TIME);
+                }, FADE_TIME + current.config.duration);
+            }
+
+            runSequence();
+        }
+
+        // Accepts an <h1> tag and will cause all its <span> children to rotate in and out (only one shows at a time)
+        function SplashRotater(headingTag, interval = 3000, fadeTime = 600) {
+            const spans = headingTag.querySelectorAll('span');
+            if (spans.length === 0) return;
+
+            let currentIndex = 0;
+
+            // Initial setup: Ensure only the first span is visible and set transitions
+            headingTag.style.position = 'relative';
+            spans.forEach((span, index) => {
+                span.style.setProperty('transition', `opacity ${fadeTime}ms ease-in-out`, 'important');
+                span.style.position = 'absolute';
+                span.style.top = '0px';
+                span.style.left = '0px';
+
+                if (index === 0) {
+                    span.style.opacity = '1';
+                } else {
+                    span.style.opacity = '0';
+                }
+            });
+
+            function cycle() {
+                setTimeout(() => {
+                    const currentSpan = spans[currentIndex];
+                    // Fade out
+                    currentSpan.style.opacity = '0';
+
+                    // Wait for fade out to complete
+                    setTimeout(() => {
+                        currentIndex = (currentIndex + 1) % spans.length;
+                        const nextSpan = spans[currentIndex];
+    
+                        nextSpan.style.opacity = '1';
+                        // Wait for fade in to finish before starting the next hold interval
+                        setTimeout(cycle, fadeTime);
+                    }, fadeTime);
+                }, interval);
+            }
+
+            cycle();
+        }
+
+        setTimeout(function() {
+            const container = document.querySelector('.splash');
+            if (container) SplashLoop(container, splash_frames);
+        }, 2100);
+
+
+        /*SCROLLING SCRIPTS (GSAP Implementation)*/
+        gsap.registerPlugin(ScrollTrigger);
+
+        const setInitialState = () => {
+            // Common initial state for text elements
+            gsap.set([".lagreeinfo-1", ".lagreeinfo-2"], { 
+                opacity: 0, 
+                x: -30 
+            });
+
+            let mm = gsap.matchMedia();
+            mm.add("(max-width: 768px)", () => {
+                /* Mobile-specific Initial States */
+                gsap.set(".aboutlagree", {
+                    backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.0), rgba(0, 0, 0, 0.0)), url(machine-1.jpg)"
+                });
+                gsap.set(".recovery p", { 
+                    opacity: 0, 
+                    x: -30 
+                });
+            });
+        };
+
+        const beginScrollTriggers = () => {
+            const triggerConfig = {
+                trigger: ".aboutlagree",
+                start: "top 70%", // Starts when top of element hits 70% of viewport height
+                toggleActions: "play none none none" // Play once
+            };
+
+            const animateText = (tl, selector, startTime) => {
+                tl.to(selector, {
+                    opacity: 1,
+                    x: 0,
+                    duration: 1,
+                    ease: "power2.out"
+                }, startTime);
+            };
+
+            const getRecoveryAnimConfig = () => ({
+                scale: 1.1,
+                duration: 10,
+                ease: "power1.out",
+                scrollTrigger: {
+                    trigger: ".recovery",
+                    start: "top 80%",
+                    toggleActions: "play none none none"
+                }
+            });
+
+            ScrollTrigger.matchMedia({
+                /* Mobile only (max-width: 768px) */
+                "(max-width: 768px)": function() {
+                    /* Timeline triggered by scroll */
+                    const tl = gsap.timeline({ scrollTrigger: triggerConfig });
+
+                    /* Animation Sequence */
+                    tl.to(".aboutlagree", {
+                        backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url(machine-1.jpg)",
+                        duration: 2.4,
+                        ease: "power1.inOut"
+                    }, 0.1);
+
+                    animateText(tl, ".lagreeinfo-1", 1.6);
+                    animateText(tl, ".lagreeinfo-2", 3.3);
+
+                    const tlRecovery = gsap.timeline({
+                        scrollTrigger: {
+                            trigger: ".recovery",
+                            start: "top 70%",
+                            toggleActions: "play none none none"
+                        }
+                    });
+
+                    tlRecovery.to(".recovery-bg", {
+                        opacity: 0.2,
+                        duration: 2.4,
+                        ease: "power1.inOut"
+                    }, 0.1);
+
+                    animateText(tlRecovery, ".recovery p:nth-of-type(1)", 1.6);
+                    animateText(tlRecovery, ".recovery p:nth-of-type(2)", 3.3);
+                },
+                "(min-width: 769px)": function() {
+                    const tl = gsap.timeline({ scrollTrigger: triggerConfig });
+                    
+                    animateText(tl, ".lagreeinfo-1", 0.2);
+                    animateText(tl, ".lagreeinfo-2", 1.5);
+                },
+                "(min-width: 1280px)": function() {
+                    gsap.to(".recovery-bg", getRecoveryAnimConfig());
+                },
+                "(max-width: 1279px)": function() {
+                    gsap.to(".recovery-bg", getRecoveryAnimConfig());
+                }
+            });
+        }
+
+        setInitialState(); /* set the initial state first */
+        window.addEventListener('scroll', beginScrollTriggers, { once: true });
+
+        /* Sticky Header Logic */
+        const initStickyHeader = () => {
+            const header = document.querySelector('header');
+            if (!header) return;
+
+            // Create placeholder to prevent layout jump when header becomes fixed
+            const placeholder = document.createElement('div');
+            placeholder.className = 'header-placeholder';
+            header.parentNode.insertBefore(placeholder, header);
+
+            let lastScrollY = window.scrollY;
+            const threshold = header.offsetHeight;
+
+            const handleScroll = () => {
+                const currentScrollY = window.scrollY;
+                const isScrollingUp = currentScrollY < lastScrollY;
+                
+                // Zone 1: Past the header's natural height
+                if (currentScrollY > threshold) {
+                    if (!header.classList.contains('floating-header')) {
+                        placeholder.style.height = header.offsetHeight + 'px';
+                        header.classList.add('floating-header');
+
+                        // Prevent transition when initially hiding the header on scroll down
+                        if (!isScrollingUp) {
+                            header.style.transition = 'none';
+                            void header.offsetHeight; // Trigger reflow
+                            header.style.transition = '';
+                        }
+                    }
+
+                    if (isScrollingUp) {
+                        header.classList.add('visible');
+                    } else {
+                        header.classList.remove('visible');
+                    }
+                } 
+                // Zone 2: Near the top (Natural position)
+                else {
+                    // Only reset to static if we hit the very top to avoid jumps
+                    if (currentScrollY <= 0 && header.classList.contains('floating-header')) {
+                        header.classList.remove('floating-header', 'visible');
+                        placeholder.style.height = '0px';
+                    }
+                }
+
+                lastScrollY = currentScrollY;
+            };
+
+            window.addEventListener('scroll', handleScroll, { passive: true });
+        };
+        
+        initStickyHeader();
+    </script>
 </body>
 </html>
