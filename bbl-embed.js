@@ -143,7 +143,9 @@
     + '.bbl-dark-header [data-framer-name="Logo"] img{filter:brightness(0) invert(1)!important}'
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
-    + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}';
+    + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
+    // On mobile Framer pushes the page content down by the header height — undo that so the hero video sits behind the header
+    + '.framer-dBsQP.framer-v-10no13n.framer-xmamoy{padding-top:0!important}';
   document.head.appendChild(darkHeaderCSS);
 
   function findHeader() {
