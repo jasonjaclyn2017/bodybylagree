@@ -136,6 +136,10 @@
   });
 
   // --- Dark header on home page at scroll top ---
+  // On Framer's mobile breakpoint, the header's *default* styling is already
+  // transparent bg + white text (designed to overlay hero video). Removing
+  // .bbl-dark-header alone leaves it dark, so we also force a light state via
+  // .bbl-light-header that mirrors the desktop cream/black defaults.
   var darkHeaderCSS = document.createElement('style');
   darkHeaderCSS.textContent =
     '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important;transition:background-color .3s}'
@@ -144,8 +148,10 @@
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
-    // On mobile Framer pushes the page content down by the header height — undo that so the hero video sits behind the header
-    + '.framer-dBsQP.framer-v-10no13n.framer-xmamoy{padding-top:0!important}';
+    + '.bbl-light-header{background-color:rgb(210,205,194)!important;transition:background-color .3s}'
+    + '.bbl-light-header p,.bbl-light-header a{color:rgb(26,26,26)!important}'
+    + '.bbl-light-header [data-framer-name="Logo"] img{filter:none!important}'
+    + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}';
   document.head.appendChild(darkHeaderCSS);
 
   function findHeader() {
@@ -174,11 +180,9 @@
   function initDarkHeader(header) {
     function updateHeader() {
       var isHome = location.pathname === '/' || location.pathname === '';
-      if (isHome && window.scrollY <= 400) {
-        header.classList.add('bbl-dark-header');
-      } else {
-        header.classList.remove('bbl-dark-header');
-      }
+      var atTop = isHome && window.scrollY <= 400;
+      header.classList.toggle('bbl-dark-header', atTop);
+      header.classList.toggle('bbl-light-header', !atTop);
     }
     window.addEventListener('scroll', updateHeader, { passive: true });
     window.addEventListener('popstate', updateHeader);
