@@ -144,18 +144,22 @@
   darkHeaderCSS.textContent =
     '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important;transition:background-color .3s}'
     + '.bbl-dark-header p,.bbl-dark-header a{color:#fff!important}'
-    // Framer applies filter:invert(1) to a logo container statically at all
-    // breakpoints (so the source-black logo renders white over dark backdrops).
-    // We compose against that: child filter applies before parent. So `none`
-    // on the img → parent inverts → white. `invert(1)` on the img → white →
-    // parent inverts back → black.
-    + '.bbl-dark-header [data-framer-name="Logo"] img{filter:none!important}'
+    // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
+    // logo-container ancestor (renders the source-black logo as white over
+    // dark backdrops). At ≥1200 that filter is dropped. We need to compose
+    // against parent state: at desktop the img must do its own inversion;
+    // at tablet/mobile it must leave (or counter) the parent's invert.
+    + '.bbl-dark-header [data-framer-name="Logo"] img{filter:brightness(0) invert(1)!important}'
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
     + '.bbl-light-header{background-color:rgb(210,205,194)!important;transition:background-color .3s}'
     + '.bbl-light-header p,.bbl-light-header a{color:rgb(26,26,26)!important}'
-    + '.bbl-light-header [data-framer-name="Logo"] img{filter:invert(1)!important}'
+    + '.bbl-light-header [data-framer-name="Logo"] img{filter:none!important}'
+    + '@media (max-width:1199px){'
+    +   '.bbl-dark-header [data-framer-name="Logo"] img{filter:none!important}'
+    +   '.bbl-light-header [data-framer-name="Logo"] img{filter:invert(1)!important}'
+    + '}'
     + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}';
   document.head.appendChild(darkHeaderCSS);
 
