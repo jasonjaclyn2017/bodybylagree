@@ -98,6 +98,11 @@
 
   function showOverlay() {
     overlay.classList.add('visible');
+    // Reset SVG timeline so the carriage animation always starts from frame 0
+    // — otherwise the user catches whatever phase of the 4s cycle is current,
+    // which may be the 0.8s "hold" portion and looks frozen.
+    var svg = overlay.firstChild;
+    if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
     clearTimeout(overlayFailsafe);
     overlayFailsafe = setTimeout(hideOverlay, OVERLAY_FAILSAFE_MS);
   }
