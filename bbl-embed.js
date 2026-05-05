@@ -89,12 +89,21 @@
 
   // --- Overlay logic ---
   var heightDebounce = null;
+  var overlayFailsafe = null;
+
+  // If the overlay is shown but ReceiveMyHeight never arrives (e.g. iframe
+  // fires a stray load event from internal redirects/posthog/etc), give up
+  // after this long and hide it anyway so the user isn't stranded.
+  var OVERLAY_FAILSAFE_MS = 5000;
 
   function showOverlay() {
     overlay.classList.add('visible');
+    clearTimeout(overlayFailsafe);
+    overlayFailsafe = setTimeout(hideOverlay, OVERLAY_FAILSAFE_MS);
   }
 
   function hideOverlay() {
+    clearTimeout(overlayFailsafe);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (iframe) iframe.style.visibility = 'visible';
     requestAnimationFrame(function () {
