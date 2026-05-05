@@ -163,19 +163,47 @@
     // dark backdrops). At ≥1200 that filter is dropped. We need to compose
     // against parent state: at desktop the img must do its own inversion;
     // at tablet/mobile it must leave (or counter) the parent's invert.
-    + '.bbl-dark-header [data-framer-name="Logo"] img{filter:brightness(0) invert(1)!important}'
+    // Logo filters: at viewport <1200 Framer applies filter:invert(1) to a
+    // logo-container ancestor on desktop browsers — but it does NOT apply that
+    // same filter on actual mobile devices (different markup served by UA).
+    // Rather than a media query, we detect the parent's filter at runtime per
+    // device and tag the img with data-bbl-parent-inverted="0|1". CSS below
+    // branches on that attribute.
+    + '.bbl-dark-header [data-framer-name="Logo"] img[data-bbl-parent-inverted="0"]{filter:brightness(0) invert(1)!important}'
+    + '.bbl-dark-header [data-framer-name="Logo"] img[data-bbl-parent-inverted="1"]{filter:none!important}'
+    + '.bbl-light-header [data-framer-name="Logo"] img[data-bbl-parent-inverted="0"]{filter:none!important}'
+    + '.bbl-light-header [data-framer-name="Logo"] img[data-bbl-parent-inverted="1"]{filter:invert(1)!important}'
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
     + '.bbl-light-header{background-color:rgb(210,205,194)!important;transition:background-color .3s}'
     + '.bbl-light-header p,.bbl-light-header a{color:rgb(26,26,26)!important}'
-    + '.bbl-light-header [data-framer-name="Logo"] img{filter:none!important}'
-    + '@media (max-width:1199px){'
-    +   '.bbl-dark-header [data-framer-name="Logo"] img{filter:none!important}'
-    +   '.bbl-light-header [data-framer-name="Logo"] img{filter:invert(1)!important}'
-    + '}'
     + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}';
   document.head.appendChild(darkHeaderCSS);
+
+  // Tag every Logo <img> with whether any ancestor has filter:invert applied
+  // (Framer's static container invert). We re-check on resize because the
+  // ancestor filter is breakpoint-driven on desktop.
+  function tagLogoParentInversion() {
+    var logos = document.querySelectorAll('[data-framer-name="Logo"]');
+    for (var i = 0; i < logos.length; i++) {
+      var img = logos[i].querySelector('img');
+      if (!img) continue;
+      var inverted = '0';
+      var p = logos[i].parentElement;
+      while (p && p !== document.body) {
+        var f = getComputedStyle(p).filter;
+        if (f && f.indexOf('invert') !== -1) { inverted = '1'; break; }
+        p = p.parentElement;
+      }
+      img.setAttribute('data-bbl-parent-inverted', inverted);
+    }
+  }
+  tagLogoParentInversion();
+  window.addEventListener('resize', tagLogoParentInversion);
+  // Also retry shortly after init in case Framer hasn't finished hydrating.
+  setTimeout(tagLogoParentInversion, 500);
+  setTimeout(tagLogoParentInversion, 1500);
 
   function findHeader() {
     var divs = document.querySelectorAll('div');
