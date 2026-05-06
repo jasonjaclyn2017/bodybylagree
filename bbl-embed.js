@@ -1,6 +1,8 @@
 (function () {
-  // Debug logging — enable with ?bbl-debug in the URL
-  var DEBUG = /[?&]bbl-debug\b/.test(location.search);
+  // Debug logging — temporarily always-on while diagnosing the iframe
+  // lifecycle (Framer's nav clears the URL search string and the console,
+  // making the ?bbl-debug gate impossible to use across navigations).
+  var DEBUG = true;
   var __t0 = performance.now();
   function dbg(label, info) {
     if (!DEBUG) return;
