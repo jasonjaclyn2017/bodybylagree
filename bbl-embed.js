@@ -199,11 +199,19 @@
       }
     }
   }
-  neutralizeLogoAncestorFilters();
+  // Framer re-renders ancestors on route changes and re-applies its inline
+  // filter:invert(1), so re-run on every nav with a few delayed retries to
+  // catch async hydration. Same retry pattern used for the initial run.
+  function scheduleNeutralizeLogoAncestorFilters() {
+    neutralizeLogoAncestorFilters();
+    setTimeout(neutralizeLogoAncestorFilters, 100);
+    setTimeout(neutralizeLogoAncestorFilters, 500);
+    setTimeout(neutralizeLogoAncestorFilters, 1500);
+  }
+  scheduleNeutralizeLogoAncestorFilters();
   window.addEventListener('resize', neutralizeLogoAncestorFilters);
-  // Also retry after init in case Framer hasn't finished hydrating.
-  setTimeout(neutralizeLogoAncestorFilters, 500);
-  setTimeout(neutralizeLogoAncestorFilters, 1500);
+  window.addEventListener('bbl-nav', scheduleNeutralizeLogoAncestorFilters);
+  window.addEventListener('popstate', scheduleNeutralizeLogoAncestorFilters);
 
   function findHeader() {
     var divs = document.querySelectorAll('div');
