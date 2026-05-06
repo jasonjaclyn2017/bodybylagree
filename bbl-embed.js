@@ -221,11 +221,11 @@
     // state so transitions run in both directions. Header itself transitions
     // background-color via inline style (set in initHideOnScrollDown alongside
     // transform) — inline wins over class rules so we set both there.
-    + '.bbl-dark-header p,.bbl-dark-header a,.bbl-light-header p,.bbl-light-header a{transition:color .2s ease}'
-    + '.bbl-dark-header [data-framer-name="Logo"] img,.bbl-light-header [data-framer-name="Logo"] img{transition:filter .2s ease}'
-    + '.bbl-dark-header [data-border],.bbl-light-header [data-border]{transition:background-color .2s ease,box-shadow .2s ease}'
-    + '.bbl-dark-header [data-framer-name="Wave"],.bbl-light-header [data-framer-name="Wave"]{transition:background-color .2s ease}'
-    + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)),.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){transition:background-color .2s ease}'
+    + '.bbl-dark-header p,.bbl-dark-header a,.bbl-light-header p,.bbl-light-header a{transition:color .5s ease}'
+    + '.bbl-dark-header [data-framer-name="Logo"] img,.bbl-light-header [data-framer-name="Logo"] img{transition:filter .5s ease}'
+    + '.bbl-dark-header [data-border],.bbl-light-header [data-border]{transition:background-color .5s ease,box-shadow .5s ease}'
+    + '.bbl-dark-header [data-framer-name="Wave"],.bbl-light-header [data-framer-name="Wave"]{transition:background-color .5s ease}'
+    + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)),.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){transition:background-color .5s ease}'
     // Hide-on-scroll-down — replaces Framer's "On Scroll Down" header animation
     // (which has no offset/velocity controls and triggered on iOS rubber-band
     // bounce near scrollY=0). See initHideOnScrollDown for the show/hide rules.
@@ -311,7 +311,7 @@
     // Inline transition wins over the dark/light class rules — include
     // background-color here so toggling .bbl-dark-header / .bbl-light-header
     // animates instead of snapping.
-    header.style.transition = 'transform 0.2s ease, background-color 0.2s ease';
+    header.style.transition = 'transform 0.2s ease, background-color 0.5s ease';
     var lastY = window.scrollY;
     var SHOW_THRESHOLD = 100; // always show within this many px of the top
     var DELTA_THRESHOLD = 5;  // ignore scrolls smaller than this
