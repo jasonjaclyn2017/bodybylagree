@@ -194,7 +194,7 @@
   // .bbl-light-header that mirrors the desktop cream/black defaults.
   var darkHeaderCSS = document.createElement('style');
   darkHeaderCSS.textContent =
-    '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important;transition:background-color .3s}'
+    '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important}'
     + '.bbl-dark-header p,.bbl-dark-header a{color:#fff!important}'
     // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
     // logo-container ancestor (renders the source-black logo as white over
@@ -214,9 +214,18 @@
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
-    + '.bbl-light-header{background-color:rgb(210,205,194)!important;transition:background-color .3s}'
+    + '.bbl-light-header{background-color:rgb(210,205,194)!important}'
     + '.bbl-light-header p,.bbl-light-header a{color:rgb(26,26,26)!important}'
     + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}'
+    // Animate every property we toggle between dark/light. Applied in either
+    // state so transitions run in both directions. Header itself transitions
+    // background-color via inline style (set in initHideOnScrollDown alongside
+    // transform) — inline wins over class rules so we set both there.
+    + '.bbl-dark-header p,.bbl-dark-header a,.bbl-light-header p,.bbl-light-header a{transition:color .2s ease}'
+    + '.bbl-dark-header [data-framer-name="Logo"] img,.bbl-light-header [data-framer-name="Logo"] img{transition:filter .2s ease}'
+    + '.bbl-dark-header [data-border],.bbl-light-header [data-border]{transition:background-color .2s ease,box-shadow .2s ease}'
+    + '.bbl-dark-header [data-framer-name="Wave"],.bbl-light-header [data-framer-name="Wave"]{transition:background-color .2s ease}'
+    + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)),.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){transition:background-color .2s ease}'
     // Hide-on-scroll-down — replaces Framer's "On Scroll Down" header animation
     // (which has no offset/velocity controls and triggered on iOS rubber-band
     // bounce near scrollY=0). See initHideOnScrollDown for the show/hide rules.
@@ -299,7 +308,10 @@
   // the state. Transition is short (120ms) so the header doesn't linger when
   // the user is actively scrolling.
   function initHideOnScrollDown(header) {
-    header.style.transition = 'transform 0.12s ease';
+    // Inline transition wins over the dark/light class rules — include
+    // background-color here so toggling .bbl-dark-header / .bbl-light-header
+    // animates instead of snapping.
+    header.style.transition = 'transform 0.2s ease, background-color 0.2s ease';
     var lastY = window.scrollY;
     var SHOW_THRESHOLD = 100; // always show within this many px of the top
     var DELTA_THRESHOLD = 5;  // ignore scrolls smaller than this
