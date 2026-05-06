@@ -1,4 +1,14 @@
 (function () {
+  // Debug logging — enable with ?bbl-debug in the URL
+  var DEBUG = /[?&]bbl-debug\b/.test(location.search);
+  var __t0 = performance.now();
+  function dbg(label, info) {
+    if (!DEBUG) return;
+    if (arguments.length < 2) console.log('[bbl +' + Math.round(performance.now() - __t0) + 'ms]', label);
+    else console.log('[bbl +' + Math.round(performance.now() - __t0) + 'ms]', label, info);
+  }
+  dbg('script init', { pathname: location.pathname, hash: location.hash, readyState: document.readyState });
+
   // Guard against double initialization
   var oldOverlay = document.getElementById('bbl-overlay');
   var oldWasVisible = oldOverlay && oldOverlay.classList.contains('visible');
@@ -84,6 +94,7 @@
 
   // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker
   if (oldWasVisible || location.pathname.includes('/schedule') || location.pathname.includes('/pricing')) {
+    dbg('init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     overlay.classList.add('visible');
   }
 
@@ -96,7 +107,7 @@
   // after this long and hide it anyway so the user isn't stranded.
   var OVERLAY_FAILSAFE_MS = 5000;
 
-  function showOverlay() {
+  function showOverlay(reason) {
     // Only reset the SMIL clock when transitioning hidden → visible. Each
     // nav triggers showOverlay() twice (once from watchIframe init, again
     // from the iframe's load event); calling setCurrentTime(0) on the
@@ -104,16 +115,18 @@
     // which manifests as a freeze (cached iframe → near-simultaneous calls)
     // on desktop or a 100–200ms restart (cellular iframe load) on mobile.
     var wasVisible = overlay.classList.contains('visible');
+    dbg('showOverlay', { reason: reason, wasVisible: wasVisible });
     overlay.classList.add('visible');
     if (!wasVisible) {
       var svg = overlay.firstChild;
       if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
     }
     clearTimeout(overlayFailsafe);
-    overlayFailsafe = setTimeout(hideOverlay, OVERLAY_FAILSAFE_MS);
+    overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
   }
 
-  function hideOverlay() {
+  function hideOverlay(reason) {
+    dbg('hideOverlay', reason);
     clearTimeout(overlayFailsafe);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (iframe) iframe.style.visibility = 'visible';
@@ -123,15 +136,20 @@
   }
 
   function watchIframe(iframe) {
-    showOverlay();
+    dbg('watchIframe', { src: iframe.src });
+    showOverlay('watchIframe-init');
     iframe.addEventListener('load', function () {
+      dbg('iframe load event', { src: iframe.src });
       iframe.style.visibility = 'hidden';
-      showOverlay();
+      showOverlay('iframe-load');
     });
   }
 
   var existing = document.querySelector('iframe[name="studioyou-iframe"]');
-  if (existing) watchIframe(existing);
+  if (existing) {
+    dbg('existing iframe at script init', { src: existing.src });
+    watchIframe(existing);
+  }
 
   new MutationObserver(function (mutations) {
     for (var i = 0; i < mutations.length; i++) {
@@ -140,20 +158,34 @@
         if (node.nodeType !== 1) continue;
         var iframe = node.name === 'studioyou-iframe' ? node
           : node.querySelector && node.querySelector('iframe[name="studioyou-iframe"]');
-        if (iframe) watchIframe(iframe);
+        if (iframe) {
+          dbg('MutationObserver: iframe added');
+          watchIframe(iframe);
+        }
       }
     }
   }).observe(document.body, { childList: true, subtree: true });
 
   window.addEventListener('message', function (e) {
+    var data;
     try {
-      var data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
-      if (data.type === 'ReceiveMyHeight') {
-        clearTimeout(heightDebounce);
-        heightDebounce = setTimeout(hideOverlay, 300);
-      }
-    } catch (_) {}
+      data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
+    } catch (_) {
+      dbg('postMessage (non-JSON)', { origin: e.origin, raw: String(e.data).slice(0, 200) });
+      return;
+    }
+    dbg('postMessage', { origin: e.origin, type: data && data.type, keys: data && typeof data === 'object' ? Object.keys(data) : null });
+    if (data && data.type === 'ReceiveMyHeight') {
+      dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
+      clearTimeout(heightDebounce);
+      heightDebounce = setTimeout(function () { hideOverlay('receivemyheight'); }, 300);
+    }
   });
+
+  // Also instrument the global URL state — helpful for understanding the
+  // /schedule → /schedule#/class-schedule/r/X transition we're seeing.
+  window.addEventListener('popstate', function () { dbg('popstate', { pathname: location.pathname, hash: location.hash }); });
+  window.addEventListener('hashchange', function () { dbg('hashchange', { hash: location.hash }); });
 
   // --- Dark header on home page at scroll top ---
   // On Framer's mobile breakpoint, the header's *default* styling is already
@@ -234,11 +266,13 @@
   var _pushState = history.pushState;
   history.pushState = function () {
     _pushState.apply(this, arguments);
+    dbg('pushState', { pathname: location.pathname, hash: location.hash });
     window.dispatchEvent(new Event('bbl-nav'));
   };
   var _replaceState = history.replaceState;
   history.replaceState = function () {
     _replaceState.apply(this, arguments);
+    dbg('replaceState', { pathname: location.pathname, hash: location.hash });
     window.dispatchEvent(new Event('bbl-nav'));
   };
 
