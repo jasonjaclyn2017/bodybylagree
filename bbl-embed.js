@@ -216,7 +216,11 @@
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
     + '.bbl-light-header{background-color:rgb(210,205,194)!important;transition:background-color .3s}'
     + '.bbl-light-header p,.bbl-light-header a{color:rgb(26,26,26)!important}'
-    + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}';
+    + '.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:rgb(26,26,26)!important}'
+    // Hide-on-scroll-down — replaces Framer's "On Scroll Down" header animation
+    // (which has no offset/velocity controls and triggered on iOS rubber-band
+    // bounce near scrollY=0). See initHideOnScrollDown for the show/hide rules.
+    + '.bbl-header-hidden{transform:translateY(-100%)!important}';
   document.head.appendChild(darkHeaderCSS);
 
   // Walk every Logo's ancestor chain and force any element with a non-empty
@@ -289,15 +293,42 @@
     updateHeader();
   }
 
+  // Hide header when scrolling down past a cushion, show when scrolling up.
+  // Cushion (SHOW_THRESHOLD) ensures iOS rubber-band bounce near scrollY=0
+  // never triggers a hide. Delta threshold prevents micro-jitter from flapping
+  // the state. Transition is short (120ms) so the header doesn't linger when
+  // the user is actively scrolling.
+  function initHideOnScrollDown(header) {
+    header.style.transition = 'transform 0.12s ease';
+    var lastY = window.scrollY;
+    var SHOW_THRESHOLD = 100; // always show within this many px of the top
+    var DELTA_THRESHOLD = 5;  // ignore scrolls smaller than this
+    function update() {
+      var y = window.scrollY;
+      var dy = y - lastY;
+      if (y <= SHOW_THRESHOLD) {
+        header.classList.remove('bbl-header-hidden');
+      } else if (dy > DELTA_THRESHOLD) {
+        header.classList.add('bbl-header-hidden');
+      } else if (dy < -DELTA_THRESHOLD) {
+        header.classList.remove('bbl-header-hidden');
+      }
+      lastY = y;
+    }
+    window.addEventListener('scroll', update, { passive: true });
+  }
+
   var headerEl = findHeader();
   if (headerEl) {
     initDarkHeader(headerEl);
+    initHideOnScrollDown(headerEl);
   } else {
     var headerRetry = setInterval(function () {
       headerEl = findHeader();
       if (headerEl) {
         clearInterval(headerRetry);
         initDarkHeader(headerEl);
+        initHideOnScrollDown(headerEl);
       }
     }, 200);
   }
