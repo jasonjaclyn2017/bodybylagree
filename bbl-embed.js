@@ -97,12 +97,18 @@
   var OVERLAY_FAILSAFE_MS = 5000;
 
   function showOverlay() {
+    // Only reset the SMIL clock when transitioning hidden → visible. Each
+    // nav triggers showOverlay() twice (once from watchIframe init, again
+    // from the iframe's load event); calling setCurrentTime(0) on the
+    // second one resets the animation just as the user starts to see it,
+    // which manifests as a freeze (cached iframe → near-simultaneous calls)
+    // on desktop or a 100–200ms restart (cellular iframe load) on mobile.
+    var wasVisible = overlay.classList.contains('visible');
     overlay.classList.add('visible');
-    // Reset SVG timeline so the carriage animation always starts from frame 0
-    // — otherwise the user catches whatever phase of the 4s cycle is current,
-    // which may be the 0.8s "hold" portion and looks frozen.
-    var svg = overlay.firstChild;
-    if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
+    if (!wasVisible) {
+      var svg = overlay.firstChild;
+      if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
+    }
     clearTimeout(overlayFailsafe);
     overlayFailsafe = setTimeout(hideOverlay, OVERLAY_FAILSAFE_MS);
   }
