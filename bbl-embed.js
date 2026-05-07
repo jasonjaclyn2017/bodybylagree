@@ -1,8 +1,6 @@
 (function () {
-  // Debug logging — temporarily always-on while diagnosing the iframe
-  // lifecycle (Framer's nav clears the URL search string and the console,
-  // making the ?bbl-debug gate impossible to use across navigations).
-  var DEBUG = true;
+  // Debug logging — enable with ?bbl-debug in the URL
+  var DEBUG = /[?&]bbl-debug\b/.test(location.search);
   var __t0 = performance.now();
   function dbg(label, info) {
     if (!DEBUG) return;
@@ -95,7 +93,7 @@
     + '<rect fill="#FFF" x="3" y="22.95" width="8" height="1"/>'
     + '</g>'
     + '<g transform="translate(79,16.5)">'
-    + '<animateTransform attributeName="transform" type="translate" values="79,16.5;184,16.5;184,16.5;79,16.5" keyTimes="0;0.4;0.6;1" dur="4s" repeatCount="indefinite"/>'
+    + '<animateTransform attributeName="transform" type="translate" values="79,16.5;184,16.5;79,16.5" keyTimes="0;0.5;1" dur="3s" repeatCount="indefinite"/>'
     + '<g>'
     + '<rect fill="#818181" x="99" y="0.5" width="12" height="12" rx="3"/>'
     + '<rect fill="#000" x="1" y="0.5" width="12" height="12" rx="3"/>'
