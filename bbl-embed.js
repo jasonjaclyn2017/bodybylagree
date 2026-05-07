@@ -11,6 +11,30 @@
   }
   dbg('script init', { pathname: location.pathname, hash: location.hash, readyState: document.readyState });
 
+  // --- Force SPA navigation for embed-bearing pages ---
+  // Framer's compiler wraps links pointing to pages that contain iframe embeds
+  // with an override that forces a full document reload (location.href = ...).
+  // We intercept the resulting navigate event and convert it back to a same-
+  // document navigation. Framer's own router listens for navigate events and
+  // re-renders the destination page in place. End result: SPA navigation for
+  // /schedule, /memberships, /pricing — same as About/Method get for free.
+  //
+  // Feature-gated to the Navigation API (Chrome/Edge 102+, Safari 17.4+).
+  // Browsers without it fall through to the existing hard-reload behavior;
+  // the overlay's path-based fast-path keeps that experience tolerable.
+  var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
+  if (typeof navigation !== 'undefined' && navigation && typeof navigation.addEventListener === 'function') {
+    navigation.addEventListener('navigate', function (e) {
+      if (!e.canIntercept) return;
+      var url;
+      try { url = new URL(e.destination.url); } catch (_) { return; }
+      if (url.origin !== location.origin) return;
+      if (SPA_PATHS.indexOf(url.pathname) === -1) return;
+      dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
+      e.intercept({ handler: function () { return Promise.resolve(); } });
+    });
+  }
+
   // Guard against double initialization
   var oldOverlay = document.getElementById('bbl-overlay');
   var oldWasVisible = oldOverlay && oldOverlay.classList.contains('visible');
