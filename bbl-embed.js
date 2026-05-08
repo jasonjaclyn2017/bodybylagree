@@ -44,7 +44,7 @@
 
   // --- Overlay styles ---
   var s = document.createElement('style');
-  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none}#bbl-overlay.visible{opacity:1;pointer-events:auto}';
+  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}#bbl-overlay.visible{opacity:1;pointer-events:auto}';
   document.head.appendChild(s);
 
   // --- Overlay DOM — SVG Megaformer Loading Animation ---
