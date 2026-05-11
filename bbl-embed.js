@@ -1,4 +1,10 @@
 (function () {
+  // Bump this on every change so we can confirm in the browser console which
+  // version Vercel is serving. Check with `bblVersion` in any tab's console.
+  var VERSION = '2026-05-11.1';
+  window.bblVersion = VERSION;
+  console.log('[bbl-embed] version ' + VERSION);
+
   // Debug logging — enable with ?bbl-debug in the URL
   var DEBUG = /[?&]bbl-debug\b/.test(location.search);
   var __t0 = performance.now();
