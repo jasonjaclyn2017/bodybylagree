@@ -48,10 +48,38 @@
     if (!iframe) return;
     var target = IFRAME_ORIGIN + entry.iframePath;
     dbg('same-page reset: resetting iframe', { pathname: destUrl.pathname, target: target });
-    weTriggeredLoad = true;
     showOverlay('same-page-reset');
     iframe.src = target;
   }
+
+  // Keep parent path aligned with iframe hash. The wrapper writes location.hash
+  // from iframe RouteChanged messages, so if the user is on /memberships and
+  // navigates inside the iframe to a class-schedule view, the parent URL ends
+  // up as /memberships#/class-schedule/... — mismatched. Then clicking the
+  // Schedule header is a cross-page nav and Framer remounts the Code
+  // Component, forcing onbookee to reload even though the iframe was already
+  // showing class-schedule. Fix: any time the hash route belongs to a
+  // different page than the current path, replaceState to align them.
+  // Framer's router will respond to the navigate event by re-rendering once,
+  // but that happens at the moment of the iframe nav (which is already a
+  // visible reload covered by the overlay) instead of later when the user
+  // expects a no-op header click.
+  var HASH_PATH_MAP = [
+    { hashPrefix: '#/class-schedule', path: '/schedule' },
+    { hashPrefix: '#/pricing',        path: '/memberships' }
+  ];
+  function realignPathIfMismatched() {
+    for (var i = 0; i < HASH_PATH_MAP.length; i++) {
+      var entry = HASH_PATH_MAP[i];
+      if (location.hash.indexOf(entry.hashPrefix) === 0 && location.pathname !== entry.path) {
+        dbg('realign path to match hash', { from: location.pathname, to: entry.path, hash: location.hash });
+        history.replaceState(null, '', entry.path + location.search + location.hash);
+        return;
+      }
+    }
+  }
+  window.addEventListener('hashchange', realignPathIfMismatched);
+  realignPathIfMismatched();
 
   if (typeof navigation !== 'undefined' && navigation && typeof navigation.addEventListener === 'function') {
     navigation.addEventListener('navigate', function (e) {
@@ -192,22 +220,11 @@
     });
   }
 
-  // Tracks whether the next iframe `load` event was triggered by us (initial
-  // mount or same-page reset) vs. by onbookee itself (user clicks a tab
-  // inside the iframe → onbookee does a full document reload, which fires
-  // `load` on our iframe element). We want to cover OUR triggers with the
-  // overlay; we want to stay out of the way for onbookee-internal reloads
-  // (its own loading UI handles those, briefly).
-  var weTriggeredLoad = false;
-
   function watchIframe(iframe) {
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
-    weTriggeredLoad = true;  // initial mount: the first load is ours
     iframe.addEventListener('load', function () {
-      dbg('iframe load event', { src: iframe.src, weTriggered: weTriggeredLoad });
-      if (!weTriggeredLoad) return;  // onbookee-internal nav, leave alone
-      weTriggeredLoad = false;
+      dbg('iframe load event', { src: iframe.src });
       iframe.style.visibility = 'hidden';
       showOverlay('iframe-load');
     });
