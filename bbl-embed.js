@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-11.3';
+  var VERSION = '2026-05-11.4';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -47,6 +47,14 @@
     '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
     '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
   };
+  // Updated by the postMessage handler below on every iframe RouteChanged.
+  // Used to distinguish wrapper-driven hash updates (which we must NOT
+  // re-sync, since the iframe is already where the hash says) from
+  // user-driven parent navigations like the Claim Intro Offer button
+  // (which we DO need to sync, because the wrapper only propagates
+  // iframe→parent and never parent→iframe).
+  var lastIframeRoute = null;
+
   function syncIframeOnSamePageNav(destUrl) {
     if (destUrl.pathname !== location.pathname) return;      // different page — Framer router + wrapper hash-precedence handle it
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
@@ -55,6 +63,9 @@
     if (destUrl.hash) {
       // Intra-page deep link (case b). Already at target hash? Nothing to do.
       if (destUrl.hash === location.hash) return;
+      // The wrapper just propagated an iframe-internal nav to the parent
+      // hash — don't reload the iframe to where it already is.
+      if (destUrl.hash === lastIframeRoute) return;
       targetPath = destUrl.hash.slice(1);                    // strip leading '#'
     } else {
       // Header reset click (case a). Skip if already at canonical default.
@@ -253,6 +264,10 @@
       dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
       clearTimeout(heightDebounce);
       heightDebounce = setTimeout(function () { hideOverlay('receivemyheight'); }, 300);
+    }
+    if (data && data.type === 'RouteChanged' && data.message && typeof data.message.path === 'string') {
+      lastIframeRoute = '#' + data.message.path;
+      dbg('iframe RouteChanged', { route: lastIframeRoute });
     }
   });
 
