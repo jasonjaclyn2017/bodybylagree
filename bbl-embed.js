@@ -29,20 +29,26 @@
   // but iframe still showing pricing). Reset the iframe to the page's
   // canonical default route so it visibly resyncs.
   var IFRAME_ORIGIN = 'https://bodybylagreesociety.onbookee.com';
-  var DEFAULT_IFRAME_PATH = {
-    '/schedule':    '/class-schedule',
-    '/memberships': '/pricing/r/2094/loc/2344?group=0'
+  // iframePath: where to point iframe.src for a reset (initial src before
+  // onbookee's internal redirects). canonicalHash: the resting-state hash
+  // that the iframe settles on after boot — used to suppress no-op resets
+  // when the user clicks the header link while already at default state.
+  var PAGE_DEFAULTS = {
+    '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
+    '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
   };
   function resetIframeIfSamePageReset(destUrl) {
     if (destUrl.hash) return;                                // user is going to a hash route, not a reset
     if (destUrl.pathname !== location.pathname) return;      // different page — Framer router handles it
     if (!location.hash) return;                              // already at default state, nothing to do
-    var defaultPath = DEFAULT_IFRAME_PATH[destUrl.pathname];
-    if (!defaultPath) return;
+    var entry = PAGE_DEFAULTS[destUrl.pathname];
+    if (!entry) return;
+    if (location.hash === entry.canonicalHash) return;       // already at the resting-state hash, skip
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (!iframe) return;
-    var target = IFRAME_ORIGIN + defaultPath;
+    var target = IFRAME_ORIGIN + entry.iframePath;
     dbg('same-page reset: resetting iframe', { pathname: destUrl.pathname, target: target });
+    weTriggeredLoad = true;
     showOverlay('same-page-reset');
     iframe.src = target;
   }
@@ -186,11 +192,22 @@
     });
   }
 
+  // Tracks whether the next iframe `load` event was triggered by us (initial
+  // mount or same-page reset) vs. by onbookee itself (user clicks a tab
+  // inside the iframe → onbookee does a full document reload, which fires
+  // `load` on our iframe element). We want to cover OUR triggers with the
+  // overlay; we want to stay out of the way for onbookee-internal reloads
+  // (its own loading UI handles those, briefly).
+  var weTriggeredLoad = false;
+
   function watchIframe(iframe) {
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
+    weTriggeredLoad = true;  // initial mount: the first load is ours
     iframe.addEventListener('load', function () {
-      dbg('iframe load event', { src: iframe.src });
+      dbg('iframe load event', { src: iframe.src, weTriggered: weTriggeredLoad });
+      if (!weTriggeredLoad) return;  // onbookee-internal nav, leave alone
+      weTriggeredLoad = false;
       iframe.style.visibility = 'hidden';
       showOverlay('iframe-load');
     });
