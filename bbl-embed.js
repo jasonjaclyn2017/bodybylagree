@@ -21,6 +21,32 @@
   // Browsers without it fall through to the existing hard-reload behavior;
   // the overlay's path-based fast-path keeps that experience tolerable.
   var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
+
+  // When the user clicks Schedule/Memberships while already on that page,
+  // Framer's router no-ops (destination matches current), the hash clears,
+  // but the iframe stays on whatever sub-route the user navigated into
+  // (e.g. Memberships → schedule#/pricing, then Schedule click → /schedule
+  // but iframe still showing pricing). Reset the iframe to the page's
+  // canonical default route so it visibly resyncs.
+  var IFRAME_ORIGIN = 'https://bodybylagreesociety.onbookee.com';
+  var DEFAULT_IFRAME_PATH = {
+    '/schedule':    '/class-schedule',
+    '/memberships': '/pricing/r/2094/loc/2344?group=0'
+  };
+  function resetIframeIfSamePageReset(destUrl) {
+    if (destUrl.hash) return;                                // user is going to a hash route, not a reset
+    if (destUrl.pathname !== location.pathname) return;      // different page — Framer router handles it
+    if (!location.hash) return;                              // already at default state, nothing to do
+    var defaultPath = DEFAULT_IFRAME_PATH[destUrl.pathname];
+    if (!defaultPath) return;
+    var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
+    if (!iframe) return;
+    var target = IFRAME_ORIGIN + defaultPath;
+    dbg('same-page reset: resetting iframe', { pathname: destUrl.pathname, target: target });
+    showOverlay('same-page-reset');
+    iframe.src = target;
+  }
+
   if (typeof navigation !== 'undefined' && navigation && typeof navigation.addEventListener === 'function') {
     navigation.addEventListener('navigate', function (e) {
       if (!e.canIntercept) return;
@@ -30,6 +56,7 @@
       if (SPA_PATHS.indexOf(url.pathname) === -1) return;
       dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
       e.intercept({ handler: function () { return Promise.resolve(); } });
+      resetIframeIfSamePageReset(url);
     });
   }
 
