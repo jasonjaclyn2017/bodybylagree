@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-11.2';
+  var VERSION = '2026-05-11.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -28,33 +28,45 @@
   // the overlay's path-based fast-path keeps that experience tolerable.
   var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
 
-  // When the user clicks Schedule/Memberships while already on that page,
-  // Framer's router no-ops (destination matches current), the hash clears,
-  // but the iframe stays on whatever sub-route the user navigated into
-  // (e.g. Memberships → schedule#/pricing, then Schedule click → /schedule
-  // but iframe still showing pricing). Reset the iframe to the page's
-  // canonical default route so it visibly resyncs.
+  // Sync the iframe to the destination of a same-page navigation. The wrapper
+  // only propagates iframe → parent hash; parent hash changes never make it
+  // back into the iframe. Without this, two classes of same-page clicks
+  // silently do nothing:
+  //   (a) header reset clicks — e.g. Schedule from /schedule#/pricing
+  //   (b) intra-page deep links — e.g. Claim Intro Offer
+  //       (/memberships#/pricing/.../?group=13008) when already on /memberships
+  // In both cases Framer's router no-ops (same path) and the iframe stays put.
+  // We bridge the gap by pointing iframe.src at the destination route
+  // (or the page's canonical default when the destination has no hash).
   var IFRAME_ORIGIN = 'https://bodybylagreesociety.onbookee.com';
-  // iframePath: where to point iframe.src for a reset (initial src before
-  // onbookee's internal redirects). canonicalHash: the resting-state hash
-  // that the iframe settles on after boot — used to suppress no-op resets
-  // when the user clicks the header link while already at default state.
+  // iframePath: where to point iframe.src for a no-hash reset (initial src
+  // before onbookee's internal redirects). canonicalHash: the resting-state
+  // hash the iframe settles on after boot — used to suppress no-op resets
+  // when the user clicks a header link while already at default state.
   var PAGE_DEFAULTS = {
     '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
     '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
   };
-  function resetIframeIfSamePageReset(destUrl) {
-    if (destUrl.hash) return;                                // user is going to a hash route, not a reset
-    if (destUrl.pathname !== location.pathname) return;      // different page — Framer router handles it
-    if (!location.hash) return;                              // already at default state, nothing to do
-    var entry = PAGE_DEFAULTS[destUrl.pathname];
-    if (!entry) return;
-    if (location.hash === entry.canonicalHash) return;       // already at the resting-state hash, skip
+  function syncIframeOnSamePageNav(destUrl) {
+    if (destUrl.pathname !== location.pathname) return;      // different page — Framer router + wrapper hash-precedence handle it
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (!iframe) return;
-    var target = IFRAME_ORIGIN + entry.iframePath;
-    dbg('same-page reset: resetting iframe', { pathname: destUrl.pathname, target: target });
-    showOverlay('same-page-reset');
+    var targetPath;
+    if (destUrl.hash) {
+      // Intra-page deep link (case b). Already at target hash? Nothing to do.
+      if (destUrl.hash === location.hash) return;
+      targetPath = destUrl.hash.slice(1);                    // strip leading '#'
+    } else {
+      // Header reset click (case a). Skip if already at canonical default.
+      if (!location.hash) return;
+      var entry = PAGE_DEFAULTS[destUrl.pathname];
+      if (!entry) return;
+      if (location.hash === entry.canonicalHash) return;
+      targetPath = entry.iframePath;
+    }
+    var target = IFRAME_ORIGIN + targetPath;
+    dbg('sync iframe on same-page nav', { pathname: destUrl.pathname, target: target });
+    showOverlay('sync-iframe');
     iframe.src = target;
   }
 
@@ -67,7 +79,7 @@
       if (SPA_PATHS.indexOf(url.pathname) === -1) return;
       dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
       e.intercept({ handler: function () { return Promise.resolve(); } });
-      resetIframeIfSamePageReset(url);
+      syncIframeOnSamePageNav(url);
     });
   }
 
