@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.3';
+  var VERSION = '2026-05-20.4';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -272,11 +272,14 @@
     var preview;
     try { preview = typeof e.data === 'object' ? JSON.stringify(e.data).slice(0, 200) : String(e.data).slice(0, 200); } catch (_) { preview = '[unserializable]'; }
     console.log('[bbl-embed] postMessage', { origin: e.origin, pathname: location.pathname, data: preview });
-    // Filter to onbookee-origin messages. Without this, any third party that
-    // happens to post a {type:"ShowOrigin"|"RouteChanged"|"ReceiveMyHeight"}
-    // message (Framer's router, embedded analytics, etc.) would trigger our
-    // overlay on pages that have no iframe — e.g. the home page.
-    if (!e.origin || e.origin.indexOf('onbookee') === -1) return;
+    // Filter to messages from the specific studioyou booking iframe. An
+    // origin-only filter is not enough — the home page contains another
+    // onbookee-origin iframe (Kenko Chatbox widget) that also fires
+    // ShowOrigin on load, which previously triggered our overlay even
+    // though that iframe isn't the booking one we cover. Match by
+    // e.source === iframe.contentWindow to be precise.
+    var studioyouIframe = document.querySelector('iframe[name="studioyou-iframe"]');
+    if (!studioyouIframe || e.source !== studioyouIframe.contentWindow) return;
     var data;
     try {
       data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
