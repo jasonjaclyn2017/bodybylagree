@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.1';
+  var VERSION = '2026-05-20.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -257,6 +257,11 @@
   }).observe(document.body, { childList: true, subtree: true });
 
   window.addEventListener('message', function (e) {
+    // Filter to onbookee-origin messages. Without this, any third party that
+    // happens to post a {type:"ShowOrigin"|"RouteChanged"|"ReceiveMyHeight"}
+    // message (Framer's router, embedded analytics, etc.) would trigger our
+    // overlay on pages that have no iframe — e.g. the home page.
+    if (!e.origin || e.origin.indexOf('onbookee') === -1) return;
     var data;
     try {
       data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
