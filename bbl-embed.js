@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.1';
+  var VERSION = '2026-05-21.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -130,21 +130,33 @@
   var interceptEls = {};
   var interceptWrapper = null;
 
-  // Ring buffer of recent iframe routes. The wrapper propagates iframe →
-  // parent hash with lag, and on rapid redirect chains (e.g. clicking
-  // Membership in the iframe: /pricing/r/2094 → /loc/2344 → ?group=0) the
-  // wrapper sometimes pushes an *intermediate* route to the parent URL
-  // after the iframe has already moved on. Comparing only against
-  // lastIframeRoute misses these — the intermediate hash doesn't match
-  // the final iframe route, so we incorrectly treat it as user-driven
-  // and force iframe.src = intermediate, causing a redundant full reload
-  // and a second onbookee mount cycle. Checking against the recent
-  // history catches the propagation lag.
+  // Ring buffer of recent iframe routes with timestamps. The wrapper
+  // propagates iframe → parent hash with lag (~tens of ms), and on rapid
+  // redirect chains (e.g. clicking Membership in the iframe:
+  // /pricing/r/2094 → /loc/2344 → ?group=0) the wrapper sometimes pushes
+  // an *intermediate* route to the parent URL after the iframe has moved
+  // on. Comparing only against lastIframeRoute misses those — they look
+  // like user-driven navs, causing redundant iframe reloads.
+  //
+  // We use a TTL on history entries: within IFRAME_ROUTE_HISTORY_TTL_MS
+  // of emission, treat the hash as wrapper-driven (skip the iframe.src
+  // update). After the TTL, a parent nav to that same hash is treated as
+  // a fresh user click — important because our NAV_INTERCEPT anchors
+  // target the same hashes the iframe has visited in the past.
   var iframeRouteHistory = [];
   var IFRAME_ROUTE_HISTORY_MAX = 20;
+  var IFRAME_ROUTE_HISTORY_TTL_MS = 2000;
   function recordIframeRoute(route) {
-    iframeRouteHistory.push(route);
+    iframeRouteHistory.push({ route: route, ts: performance.now() });
     if (iframeRouteHistory.length > IFRAME_ROUTE_HISTORY_MAX) iframeRouteHistory.shift();
+  }
+  function isRecentlyEmittedRoute(hash) {
+    var now = performance.now();
+    for (var i = iframeRouteHistory.length - 1; i >= 0; i--) {
+      var entry = iframeRouteHistory[i];
+      if (entry.route === hash) return (now - entry.ts) < IFRAME_ROUTE_HISTORY_TTL_MS;
+    }
+    return false;
   }
 
   function syncIframeOnSamePageNav(destUrl) {
@@ -155,11 +167,13 @@
     if (destUrl.hash) {
       // Intra-page deep link (case b). Already at target hash? Nothing to do.
       if (destUrl.hash === location.hash) return;
-      // The wrapper just propagated an iframe-internal nav to the parent
-      // hash — don't reload the iframe to where it already is. Check the
-      // recent history (not just the latest) to catch wrapper propagation
-      // lag during redirect chains; see iframeRouteHistory comment above.
-      if (iframeRouteHistory.indexOf(destUrl.hash) !== -1) return;
+      // Suppress wrapper-driven hash updates: if the iframe emitted this
+      // route within the last IFRAME_ROUTE_HISTORY_TTL_MS, the parent
+      // hash change is the wrapper catching up and we shouldn't reload
+      // the iframe back to where it already is. Older history entries
+      // do NOT block — they're stale destinations the user is free to
+      // re-navigate to (e.g. via our NAV_INTERCEPT anchors).
+      if (isRecentlyEmittedRoute(destUrl.hash)) return;
       targetPath = destUrl.hash.slice(1);                    // strip leading '#'
     } else {
       // Header reset click (case a). Skip if already at canonical default.
@@ -182,6 +196,8 @@
       try { url = new URL(e.destination.url); } catch (_) { return; }
       if (url.origin !== location.origin) return;
       if (SPA_PATHS.indexOf(url.pathname) === -1) return;
+      // Temporary debug — see if intercept clicks are reaching here.
+      console.log('[bbl-embed] navigate intercept', { destPathname: url.pathname, destHash: url.hash, currentPathname: location.pathname, currentHash: location.hash, type: e.navigationType });
       dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
       e.intercept({ handler: function () { return Promise.resolve(); } });
       syncIframeOnSamePageNav(url);
