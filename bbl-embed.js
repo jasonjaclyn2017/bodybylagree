@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.8';
+  var VERSION = '2026-05-21.9';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -504,6 +504,31 @@
       lastIframeRoute = '#' + data.message.path;
       recordIframeRoute(lastIframeRoute);
       dbg('iframe RouteChanged', { route: lastIframeRoute });
+    }
+    if (data && data.type === 'ReceiveClientRect') {
+      // Onbookee polls for this when its modals (e.g. date picker) need to
+      // anchor against the parent page. Cross-origin iframes can't measure
+      // their own parent-page position, so they ask us. If we don't reply
+      // they retry ~2x/sec indefinitely. Reply with the iframe's bounding
+      // rect plus viewport scroll/size so modals can position correctly.
+      // Response shape is a best guess matching their naming convention —
+      // adjust if the date picker still mispositions.
+      var rectIframe = getStudioyouIframe();
+      if (rectIframe && e.source && e.origin) {
+        var r = rectIframe.getBoundingClientRect();
+        try {
+          e.source.postMessage(JSON.stringify({
+            type: 'ReceiveClientRect',
+            message: {
+              x: r.x, y: r.y,
+              width: r.width, height: r.height,
+              top: r.top, left: r.left, right: r.right, bottom: r.bottom,
+              scrollX: window.scrollX, scrollY: window.scrollY,
+              innerWidth: window.innerWidth, innerHeight: window.innerHeight
+            }
+          }), e.origin);
+        } catch (_) {}
+      }
     }
   });
 
