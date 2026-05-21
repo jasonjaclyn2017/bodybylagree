@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.7';
+  var VERSION = '2026-05-21.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -119,7 +119,7 @@
     membership: {
       onbookeePath: '/pricing/r/2094/loc/2344?group=0',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 48px)', width: '90px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 59px)', width: '90px', height: '59px' }
     }
     // Login and Cart intentionally omitted: onbookee collapses the
     // Login/Signup link (95px) to an icon (40px) when the user is logged
