@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.4';
+  var VERSION = '2026-05-21.5';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -228,7 +228,7 @@
   // rule that applies is the one on the element's STATE AT THE TIME OF
   // CHANGE — so .visible's 50ms rule governs adding the class (fade-in),
   // and the default 200ms rule governs removing it (fade-out).
-  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}#bbl-overlay.visible{opacity:1;pointer-events:auto;transition:opacity .05s ease}';
+  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}#bbl-overlay.visible{opacity:1;pointer-events:auto;transition:opacity .1s ease}';
   document.head.appendChild(s);
 
   // --- Overlay DOM — SVG Megaformer Loading Animation ---
