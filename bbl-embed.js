@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.9';
+  var VERSION = '2026-05-21.10';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -199,8 +199,6 @@
       try { url = new URL(e.destination.url); } catch (_) { return; }
       if (url.origin !== location.origin) return;
       if (SPA_PATHS.indexOf(url.pathname) === -1) return;
-      // Temporary debug — see if intercept clicks are reaching here.
-      console.log('[bbl-embed] navigate intercept', { destPathname: url.pathname, destHash: url.hash, currentPathname: location.pathname, currentHash: location.hash, type: e.navigationType });
       dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
       e.intercept({ handler: function () { return Promise.resolve(); } });
       syncIframeOnSamePageNav(url);
@@ -317,10 +315,7 @@
   };
 
   // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker
-  // Temporary debug — surface init state unconditionally.
-  console.log('[bbl-embed] init', { pathname: location.pathname, oldWasVisible: oldWasVisible, hasOldOverlay: !!oldOverlay });
   if (oldWasVisible || location.pathname.includes('/schedule') || location.pathname.includes('/pricing')) {
-    console.log('[bbl-embed] init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     dbg('init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     overlay.classList.add('visible');
   }
@@ -345,9 +340,6 @@
     // which manifests as a freeze (cached iframe → near-simultaneous calls)
     // on desktop or a 100–200ms restart (cellular iframe load) on mobile.
     var wasVisible = overlay.classList.contains('visible');
-    // Temporary debug — surfacing show/hide reasons unconditionally while we
-    // diagnose stray overlay activations on the home page.
-    console.log('[bbl-embed] showOverlay', { reason: reason, wasVisible: wasVisible, pathname: location.pathname });
     dbg('showOverlay', { reason: reason, wasVisible: wasVisible });
     overlay.classList.add('visible');
     if (!wasVisible) {
@@ -366,8 +358,6 @@
   }
 
   function hideOverlay(reason) {
-    // Temporary debug — see note in showOverlay.
-    console.log('[bbl-embed] hideOverlay', { reason: reason, pathname: location.pathname });
     dbg('hideOverlay', reason);
     clearTimeout(overlayFailsafe);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
@@ -378,24 +368,10 @@
   }
 
   function watchIframe(iframe) {
-    // Temporary debug — see note in showOverlay.
-    console.log('[bbl-embed] watchIframe', { src: iframe.src, pathname: location.pathname });
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
     // Build intercepts once the iframe is on the page.
     buildIntercepts();
-    // Temporary debug — observe iframe.src attribute changes to diagnose
-    // why some in-iframe clicks (Membership) cause two ShowOrigin events.
-    // If src changes once, onbookee remounts via its SPA; if src changes
-    // twice, something is forcing a second iframe-level navigation
-    // (e.g. onbookee's link handler using location.href, or a redirect).
-    new MutationObserver(function (mutations) {
-      for (var i = 0; i < mutations.length; i++) {
-        if (mutations[i].attributeName === 'src') {
-          console.log('[bbl-embed] iframe.src changed', { newSrc: iframe.src, pathname: location.pathname });
-        }
-      }
-    }).observe(iframe, { attributes: true, attributeFilter: ['src'] });
     iframe.addEventListener('load', function () {
       // iframe.load fires when the iframe document AND all subresources
       // (scripts, images, etc.) finish loading. In practice this is LATER
@@ -406,8 +382,7 @@
       // (since showOverlay clears it) and strand the overlay until the
       // 10s failsafe. Setting iframe.style.visibility='hidden' would also
       // be wrong — the content is ready, hiding it would blank the page.
-      // Just log; the postMessage handlers manage the overlay lifecycle.
-      console.log('[bbl-embed] iframe load event', { src: iframe.src });
+      // postMessage handlers manage the overlay lifecycle.
       dbg('iframe load event', { src: iframe.src });
     });
   }
@@ -434,11 +409,6 @@
   }).observe(document.body, { childList: true, subtree: true });
 
   window.addEventListener('message', function (e) {
-    // Temporary debug — log ALL postMessages including rejected ones so we
-    // can see what third parties are firing on the home page.
-    var preview;
-    try { preview = typeof e.data === 'object' ? JSON.stringify(e.data).slice(0, 200) : String(e.data).slice(0, 200); } catch (_) { preview = '[unserializable]'; }
-    console.log('[bbl-embed] postMessage', { origin: e.origin, pathname: location.pathname, data: preview });
     // Filter to messages from the specific studioyou booking iframe. An
     // origin-only filter is not enough — the home page contains another
     // onbookee-origin iframe (Kenko Chatbox widget) that also fires
