@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-11.4';
+  var VERSION = '2026-05-20.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -206,6 +206,11 @@
       var svg = overlay.firstChild;
       if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
     }
+    // Cancel any pending ReceiveMyHeight debounce — without this, re-showing
+    // during the 300ms debounce window gets undone by the already-scheduled
+    // hide. Matters when onbookee fires a second ShowOrigin / RouteChanged
+    // shortly after a prior load settled (e.g. /pricing's double-mount).
+    clearTimeout(heightDebounce);
     clearTimeout(overlayFailsafe);
     overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
   }
@@ -260,6 +265,27 @@
       return;
     }
     dbg('postMessage', { origin: e.origin, type: data && data.type, keys: data && typeof data === 'object' ? Object.keys(data) : null });
+    // Cover onbookee's loading state. Three triggers — overlap is intentional:
+    //   ShowOrigin     → fires on every onbookee mount (incl. their /pricing
+    //                    double-mount). Earliest signal on iframe-remount flows.
+    //   RouteChanged   → fires on every URL transition, including pure-SPA navs
+    //                    where no remount happens. Slightly later than 331.
+    //   height === 331 → onbookee's loading-skeleton height. Confirmed stable
+    //                    across viewports (wide vw=2210, narrow vw=848, both
+    //                    report 331 — skeleton doesn't scale). Fires earliest
+    //                    on some SPA navs that don't trigger ShowOrigin. Real
+    //                    content heights observed: 241, 249, 328, 346, 463+ —
+    //                    no collisions at exactly 331. Magic number tied to
+    //                    onbookee's current loader UI; update if they change it.
+    if (data && data.type === 'ShowOrigin') {
+      showOverlay('show-origin');
+    }
+    if (data && data.type === 'RouteChanged') {
+      showOverlay('route-changed');
+    }
+    if (data && data.type === 'ReceiveMyHeight' && data.message && data.message.height === 331) {
+      showOverlay('loading-height');
+    }
     if (data && data.type === 'ReceiveMyHeight') {
       dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
       clearTimeout(heightDebounce);
