@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.6';
+  var VERSION = '2026-05-21.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -114,7 +114,7 @@
     essentials: {
       onbookeePath: '/products/r/2094',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 237px)', width: '165px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 237px)', width: '155px', height: '59px' }
     },
     membership: {
       onbookeePath: '/pricing/r/2094/loc/2344?group=0',
