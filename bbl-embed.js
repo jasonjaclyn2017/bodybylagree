@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.2';
+  var VERSION = '2026-05-21.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -56,15 +56,22 @@
   var lastIframeRoute = null;
   // --- Click intercepts over onbookee's persistent nav ---
   // Each entry creates a transparent <a> positioned over a region of the
-  // iframe. Clicking it navigates parent-side (Framer SPA) instead of
-  // letting the click reach onbookee — avoiding the ~1s gap before onbookee
-  // sends ShowOrigin/RouteChanged. Position values are CSS strings applied
-  // as inline styles to the intercept element (which lives inside a wrapper
+  // iframe. Clicking it navigates parent-side (same-page hash update + our
+  // syncIframeOnSamePageNav handler updating iframe.src) instead of letting
+  // the click reach onbookee — avoiding the ~1s gap before onbookee sends
+  // ShowOrigin/RouteChanged. Position values are CSS strings applied as
+  // inline styles to the intercept element (which lives inside a wrapper
   // that mirrors the iframe's rect). Use any CSS units: px, %, calc().
-  //   pages: optional array of parent pathnames; defaults to all SPA_PATHS.
-  //   href:  destination URL (uses /<page>#<onbookee-path> hash routing —
-  //          bbl-embed.js already handles this via syncIframeOnSamePageNav).
-  //   style: position/size relative to iframe (top/bottom/left/right + width/height).
+  //   pages:        optional array of parent pathnames; defaults to all SPA_PATHS.
+  //   onbookeePath: target onbookee route (no origin). buildIntercepts wires
+  //                 href = location.pathname + '#' + onbookeePath so each
+  //                 click is a SAME-PAGE hash nav on the current Framer
+  //                 page (URL desync is acceptable — /schedule#/pricing/...
+  //                 and /memberships#/pricing/... both resolve to the same
+  //                 iframe state on refresh). Avoids cross-page navs which
+  //                 our navigate handler intercepts but Framer's router
+  //                 doesn't always re-render from.
+  //   style:        position/size relative to iframe (top/bottom/left/right + width/height).
   //
   // Debug helpers (paste in console):
   //   bblIntercepts(true)               // paint intercepts visible (red boxes)
@@ -90,39 +97,39 @@
   // gates them out at narrower viewports.
   var NAV_INTERCEPTS = {
     classes: {
-      href: '/schedule#/class-schedule/r/2094',
+      onbookeePath: '/class-schedule/r/2094',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 560px)', width: '51px', height: '59px' }
     },
     sauna: {
-      href: '/schedule#/appointment/r/2094',
+      onbookeePath: '/appointment/r/2094',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 485px)', width: '107px', height: '59px' }
     },
     certifications: {
-      href: '/schedule#/courses/r/2094',
+      onbookeePath: '/courses/r/2094',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 354px)', width: '93px', height: '59px' }
     },
     essentials: {
-      href: '/schedule#/products/r/2094',
+      onbookeePath: '/products/r/2094',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 237px)', width: '165px', height: '59px' }
     },
     membership: {
-      href: '/memberships#/pricing/r/2094/loc/2344?group=0',
+      onbookeePath: '/pricing/r/2094/loc/2344?group=0',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 48px)', width: '90px', height: '59px' }
     },
     cart: {
-      // TODO: verify onbookee URL for cart — placeholder /cart for now.
-      href: '/schedule#/cart',
+      // TODO: verify onbookee URL for cart — placeholder for now.
+      onbookeePath: '/cart',
       minWidth: 844,
       style: { top: '0', right: 'calc(50% - 465px)', width: '40px', height: '58px' }
     },
     login: {
-      // TODO: verify onbookee URL for login — placeholder /login for now.
-      href: '/schedule#/login',
+      // TODO: verify onbookee URL for login — placeholder for now.
+      onbookeePath: '/login',
       minWidth: 844,
       style: { top: '0', right: 'calc(50% - 560px)', width: '95px', height: '59px' }
     }
@@ -549,7 +556,9 @@
       if (def.pages && def.pages.indexOf(location.pathname) === -1) return;
       if (def.minWidth && window.innerWidth < def.minWidth) return;
       var a = document.createElement('a');
-      a.href = def.href;
+      // Same-page hash nav on whatever Framer page we're currently on.
+      // syncIframeOnSamePageNav handles this by updating iframe.src.
+      a.href = location.pathname + '#' + def.onbookeePath;
       a.className = 'bbl-intercept';
       a.dataset.bblIntercept = name;
       Object.keys(def.style || {}).forEach(function (prop) { a.style[prop] = def.style[prop]; });
@@ -586,7 +595,7 @@
     var summary = {};
     Object.keys(interceptEls).forEach(function (name) {
       var el = interceptEls[name];
-      summary[name] = { href: el.href, top: el.style.top, bottom: el.style.bottom, left: el.style.left, right: el.style.right, width: el.style.width, height: el.style.height };
+      summary[name] = { href: el.getAttribute('href'), top: el.style.top, bottom: el.style.bottom, left: el.style.left, right: el.style.right, width: el.style.width, height: el.style.height };
     });
     console.table(summary);
   };
