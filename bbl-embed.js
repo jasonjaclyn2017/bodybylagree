@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.5';
+  var VERSION = '2026-05-20.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -176,6 +176,21 @@
     + '</g>'
     + '</svg>';
   document.body.appendChild(overlay);
+
+  // Debug hook — call bblOverlayAlpha(0.2) in console to see onbookee through
+  // the overlay (0=invisible, 1=opaque). bblOverlayAlpha() resets to default.
+  // Uses CSS custom property + override of .visible's opacity rule so the
+  // class-based show/hide still works while transparent.
+  window.bblOverlayAlpha = function (a) {
+    var existing = document.getElementById('bbl-overlay-alpha-override');
+    if (existing) existing.remove();
+    if (a == null) return;
+    var styleEl = document.createElement('style');
+    styleEl.id = 'bbl-overlay-alpha-override';
+    styleEl.textContent = '#bbl-overlay.visible{opacity:' + a + '!important}';
+    document.head.appendChild(styleEl);
+    console.log('[bbl-embed] overlay alpha set to', a);
+  };
 
   // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker
   // Temporary debug — surface init state unconditionally.
