@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.11';
+  var VERSION = '2026-05-20.12';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -54,6 +54,38 @@
   // (which we DO need to sync, because the wrapper only propagates
   // iframe→parent and never parent→iframe).
   var lastIframeRoute = null;
+  // --- Click intercepts over onbookee's persistent nav ---
+  // Each entry creates a transparent <a> positioned over a region of the
+  // iframe. Clicking it navigates parent-side (Framer SPA) instead of
+  // letting the click reach onbookee — avoiding the ~1s gap before onbookee
+  // sends ShowOrigin/RouteChanged. Position values are CSS strings applied
+  // as inline styles to the intercept element (which lives inside a wrapper
+  // that mirrors the iframe's rect). Use any CSS units: px, %, calc().
+  //   pages: optional array of parent pathnames; defaults to all SPA_PATHS.
+  //   href:  destination URL (uses /<page>#<onbookee-path> hash routing —
+  //          bbl-embed.js already handles this via syncIframeOnSamePageNav).
+  //   style: position/size relative to iframe (top/bottom/left/right + width/height).
+  //
+  // Debug helpers (paste in console):
+  //   bblIntercepts(true)               // paint intercepts visible (red boxes)
+  //   bblIntercepts(false)              // hide debug visuals
+  //   bblInterceptPos('classes', {...}) // live-tweak one intercept's style
+  //   bblInterceptList()                // log current configs
+  // Once positions look right, copy the final styles back into this config.
+  var NAV_INTERCEPTS = {
+    // Example (commented out — fill in after measuring):
+    // classes: {
+    //   href: '/schedule#/class-schedule/r/2094',
+    //   style: { bottom: '0', left: '0%', width: '20%', height: '50px' }
+    // },
+    // memberships: {
+    //   href: '/memberships#/pricing/r/2094/loc/2344?group=0',
+    //   style: { bottom: '0', left: '20%', width: '20%', height: '50px' }
+    // }
+  };
+  var interceptEls = {};
+  var interceptWrapper = null;
+
   // Ring buffer of recent iframe routes. The wrapper propagates iframe →
   // parent hash with lag, and on rapid redirect chains (e.g. clicking
   // Membership in the iframe: /pricing/r/2094 → /loc/2344 → ?group=0) the
@@ -281,6 +313,8 @@
     console.log('[bbl-embed] watchIframe', { src: iframe.src, pathname: location.pathname });
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
+    // Build intercepts once the iframe is on the page.
+    buildIntercepts();
     // Temporary debug — observe iframe.src attribute changes to diagnose
     // why some in-iframe clicks (Membership) cause two ShowOrigin events.
     // If src changes once, onbookee remounts via its SPA; if src changes
@@ -394,6 +428,8 @@
         clearTimeout(overlayFailsafe);
         overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
       }
+      // Iframe size likely changed — realign the intercept wrapper.
+      repositionInterceptWrapper();
     }
     if (data && data.type === 'RouteChanged' && data.message && typeof data.message.path === 'string') {
       lastIframeRoute = '#' + data.message.path;
@@ -406,6 +442,87 @@
   // /schedule → /schedule#/class-schedule/r/X transition we're seeing.
   window.addEventListener('popstate', function () { dbg('popstate', { pathname: location.pathname, hash: location.hash }); });
   window.addEventListener('hashchange', function () { dbg('hashchange', { hash: location.hash }); });
+
+  // --- Click intercept framework (see NAV_INTERCEPTS config above) ---
+  function setupInterceptStyles() {
+    if (document.getElementById('bbl-intercept-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'bbl-intercept-styles';
+    s.textContent =
+      '#bbl-intercept-wrapper{position:fixed;pointer-events:none;z-index:8}'
+      + '.bbl-intercept{position:absolute;pointer-events:auto;cursor:pointer;text-decoration:none}'
+      + '.bbl-intercept-debug .bbl-intercept{background:rgba(255,0,0,0.3);outline:1px dashed red}'
+      + '.bbl-intercept-debug .bbl-intercept::after{content:attr(data-bbl-intercept);color:#fff;font:11px monospace;padding:2px 4px;background:rgba(0,0,0,0.7);position:absolute;top:0;left:0}';
+    document.head.appendChild(s);
+  }
+
+  function getStudioyouIframe() {
+    return document.querySelector('iframe[name="studioyou-iframe"]');
+  }
+
+  function repositionInterceptWrapper() {
+    if (!interceptWrapper) return;
+    var iframe = getStudioyouIframe();
+    if (!iframe) return;
+    var rect = iframe.getBoundingClientRect();
+    interceptWrapper.style.left = rect.left + 'px';
+    interceptWrapper.style.top = rect.top + 'px';
+    interceptWrapper.style.width = rect.width + 'px';
+    interceptWrapper.style.height = rect.height + 'px';
+  }
+
+  function buildIntercepts() {
+    setupInterceptStyles();
+    // Tear down any previous wrapper (e.g. on parent SPA nav between pages).
+    if (interceptWrapper) {
+      interceptWrapper.remove();
+      interceptWrapper = null;
+      interceptEls = {};
+    }
+    var iframe = getStudioyouIframe();
+    if (!iframe) return;
+    interceptWrapper = document.createElement('div');
+    interceptWrapper.id = 'bbl-intercept-wrapper';
+    document.body.appendChild(interceptWrapper);
+    Object.keys(NAV_INTERCEPTS).forEach(function (name) {
+      var def = NAV_INTERCEPTS[name];
+      if (def.pages && def.pages.indexOf(location.pathname) === -1) return;
+      var a = document.createElement('a');
+      a.href = def.href;
+      a.className = 'bbl-intercept';
+      a.dataset.bblIntercept = name;
+      Object.keys(def.style || {}).forEach(function (prop) { a.style[prop] = def.style[prop]; });
+      interceptWrapper.appendChild(a);
+      interceptEls[name] = a;
+    });
+    repositionInterceptWrapper();
+  }
+
+  window.addEventListener('scroll', repositionInterceptWrapper, { passive: true });
+  window.addEventListener('resize', repositionInterceptWrapper);
+  // Re-build on parent SPA nav (the iframe element may be replaced).
+  window.addEventListener('bbl-nav', buildIntercepts);
+
+  // Debug helpers
+  window.bblIntercepts = function (visible) {
+    if (!interceptWrapper) return console.log('[bbl-embed] no intercept wrapper yet');
+    interceptWrapper.classList.toggle('bbl-intercept-debug', visible !== false);
+    console.log('[bbl-embed] intercepts', visible !== false ? 'visible' : 'hidden');
+  };
+  window.bblInterceptPos = function (name, styles) {
+    var el = interceptEls[name];
+    if (!el) return console.log('[bbl-embed] no intercept named', name, '— have:', Object.keys(interceptEls));
+    Object.keys(styles).forEach(function (prop) { el.style[prop] = styles[prop]; });
+    console.log('[bbl-embed] updated', name, '→', styles);
+  };
+  window.bblInterceptList = function () {
+    var summary = {};
+    Object.keys(interceptEls).forEach(function (name) {
+      var el = interceptEls[name];
+      summary[name] = { href: el.href, top: el.style.top, bottom: el.style.bottom, left: el.style.left, right: el.style.right, width: el.style.width, height: el.style.height };
+    });
+    console.table(summary);
+  };
 
   // --- Dark header on home page at scroll top ---
   // On Framer's mobile breakpoint, the header's *default* styling is already
