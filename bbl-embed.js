@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.4';
+  var VERSION = '2026-05-20.5';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -190,10 +190,15 @@
   var heightDebounce = null;
   var overlayFailsafe = null;
 
-  // If the overlay is shown but ReceiveMyHeight never arrives (e.g. iframe
-  // fires a stray load event from internal redirects/posthog/etc), give up
-  // after this long and hide it anyway so the user isn't stranded.
-  var OVERLAY_FAILSAFE_MS = 5000;
+  // If the overlay is shown but the iframe goes completely silent (no
+  // ReceiveMyHeight arrives, e.g. iframe fires a stray load event from
+  // internal redirects/posthog/etc), give up after this long and hide it
+  // anyway so the user isn't stranded. Bumped from 5s → 10s because slow
+  // onbookee loads on RouteChanged can sit for >5s before the next height
+  // arrives (especially when other scripts like clarity.js stall the main
+  // thread). The failsafe also gets pushed back on each ReceiveMyHeight
+  // (see handler below) — any height = proof of life.
+  var OVERLAY_FAILSAFE_MS = 10000;
 
   function showOverlay(reason) {
     // Only reset the SMIL clock when transitioning hidden → visible. Each
@@ -313,6 +318,14 @@
       dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
       clearTimeout(heightDebounce);
       heightDebounce = setTimeout(function () { hideOverlay('receivemyheight'); }, 300);
+      // Push failsafe back — any height message is proof the iframe is alive.
+      // Without this, a slow nav (RouteChanged then long pause before next
+      // height) trips the failsafe and hides the overlay mid-load. Only
+      // complete silence from onbookee should fire the failsafe.
+      if (overlay.classList.contains('visible')) {
+        clearTimeout(overlayFailsafe);
+        overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
+      }
     }
     if (data && data.type === 'RouteChanged' && data.message && typeof data.message.path === 'string') {
       lastIframeRoute = '#' + data.message.path;
