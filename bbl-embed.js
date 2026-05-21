@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.8';
+  var VERSION = '2026-05-20.9';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -266,9 +266,18 @@
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
     iframe.addEventListener('load', function () {
+      // iframe.load fires when the iframe document AND all subresources
+      // (scripts, images, etc.) finish loading. In practice this is LATER
+      // than onbookee's app boot + ShowOrigin/RouteChanged/ReceiveMyHeight
+      // sequence (which run on DOMContentLoaded inside the iframe). So by
+      // the time this fires the load is effectively done; calling
+      // showOverlay here would cancel the pending heightDebounce hide
+      // (since showOverlay clears it) and strand the overlay until the
+      // 10s failsafe. Setting iframe.style.visibility='hidden' would also
+      // be wrong — the content is ready, hiding it would blank the page.
+      // Just log; the postMessage handlers manage the overlay lifecycle.
+      console.log('[bbl-embed] iframe load event', { src: iframe.src });
       dbg('iframe load event', { src: iframe.src });
-      iframe.style.visibility = 'hidden';
-      showOverlay('iframe-load');
     });
   }
 
