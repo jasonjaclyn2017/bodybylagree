@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.6';
+  var VERSION = '2026-05-20.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -187,7 +187,12 @@
     if (a == null) return;
     var styleEl = document.createElement('style');
     styleEl.id = 'bbl-overlay-alpha-override';
-    styleEl.textContent = '#bbl-overlay.visible{opacity:' + a + '!important}';
+    // Also force iframe visibility — watchIframe's load handler sets
+    // iframe.style.visibility='hidden' to prevent flash, which would
+    // otherwise mean there's nothing behind the translucent overlay to see.
+    // CSS !important beats non-important inline style.
+    styleEl.textContent = '#bbl-overlay.visible{opacity:' + a + '!important}'
+      + 'iframe[name="studioyou-iframe"]{visibility:visible!important}';
     document.head.appendChild(styleEl);
     console.log('[bbl-embed] overlay alpha set to', a);
   };
@@ -232,11 +237,16 @@
       var svg = overlay.firstChild;
       if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
     }
-    // Cancel any pending ReceiveMyHeight debounce — without this, re-showing
-    // during the 300ms debounce window gets undone by the already-scheduled
-    // hide. Matters when onbookee fires a second ShowOrigin / RouteChanged
-    // shortly after a prior load settled (e.g. /pricing's double-mount).
+    // Treat the trigger itself as activity and (re)schedule a debounced
+    // hide. ReceiveMyHeight will keep extending this; if onbookee goes
+    // silent after a non-height trigger (e.g. a RouteChanged where the
+    // layout height didn't change, so no new height is sent — observed
+    // on /appointment/...?facility=&id= sub-routes), we still hide via
+    // this debounce rather than waiting for the 10s failsafe.
+    // 500ms (vs ReceiveMyHeight's 300ms) gives onbookee a beat to start
+    // sending heights before we give up.
     clearTimeout(heightDebounce);
+    heightDebounce = setTimeout(function () { hideOverlay('debounce-after-show'); }, 500);
     clearTimeout(overlayFailsafe);
     overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
   }
