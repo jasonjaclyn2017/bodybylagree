@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.10';
+  var VERSION = '2026-05-20.11';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -54,6 +54,22 @@
   // (which we DO need to sync, because the wrapper only propagates
   // iframe→parent and never parent→iframe).
   var lastIframeRoute = null;
+  // Ring buffer of recent iframe routes. The wrapper propagates iframe →
+  // parent hash with lag, and on rapid redirect chains (e.g. clicking
+  // Membership in the iframe: /pricing/r/2094 → /loc/2344 → ?group=0) the
+  // wrapper sometimes pushes an *intermediate* route to the parent URL
+  // after the iframe has already moved on. Comparing only against
+  // lastIframeRoute misses these — the intermediate hash doesn't match
+  // the final iframe route, so we incorrectly treat it as user-driven
+  // and force iframe.src = intermediate, causing a redundant full reload
+  // and a second onbookee mount cycle. Checking against the recent
+  // history catches the propagation lag.
+  var iframeRouteHistory = [];
+  var IFRAME_ROUTE_HISTORY_MAX = 20;
+  function recordIframeRoute(route) {
+    iframeRouteHistory.push(route);
+    if (iframeRouteHistory.length > IFRAME_ROUTE_HISTORY_MAX) iframeRouteHistory.shift();
+  }
 
   function syncIframeOnSamePageNav(destUrl) {
     if (destUrl.pathname !== location.pathname) return;      // different page — Framer router + wrapper hash-precedence handle it
@@ -64,8 +80,10 @@
       // Intra-page deep link (case b). Already at target hash? Nothing to do.
       if (destUrl.hash === location.hash) return;
       // The wrapper just propagated an iframe-internal nav to the parent
-      // hash — don't reload the iframe to where it already is.
-      if (destUrl.hash === lastIframeRoute) return;
+      // hash — don't reload the iframe to where it already is. Check the
+      // recent history (not just the latest) to catch wrapper propagation
+      // lag during redirect chains; see iframeRouteHistory comment above.
+      if (iframeRouteHistory.indexOf(destUrl.hash) !== -1) return;
       targetPath = destUrl.hash.slice(1);                    // strip leading '#'
     } else {
       // Header reset click (case a). Skip if already at canonical default.
@@ -379,6 +397,7 @@
     }
     if (data && data.type === 'RouteChanged' && data.message && typeof data.message.path === 'string') {
       lastIframeRoute = '#' + data.message.path;
+      recordIframeRoute(lastIframeRoute);
       dbg('iframe RouteChanged', { route: lastIframeRoute });
     }
   });
