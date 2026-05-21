@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.5';
+  var VERSION = '2026-05-21.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -120,19 +120,15 @@
       onbookeePath: '/pricing/r/2094/loc/2344?group=0',
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 48px)', width: '90px', height: '59px' }
-    },
-    cart: {
-      // TODO: verify onbookee URL for cart — placeholder for now.
-      onbookeePath: '/cart',
-      minWidth: 844,
-      style: { top: '0', right: 'calc(50% - 465px)', width: '40px', height: '58px' }
-    },
-    login: {
-      // TODO: verify onbookee URL for login — placeholder for now.
-      onbookeePath: '/login',
-      minWidth: 844,
-      style: { top: '0', right: 'calc(50% - 560px)', width: '95px', height: '59px' }
     }
+    // Login and Cart intentionally omitted: onbookee collapses the
+    // Login/Signup link (95px) to an icon (40px) when the user is logged
+    // in, which also shifts the Cart's right offset by 55px. We have no
+    // parent-side signal for auth state, so any fixed-position intercept
+    // would be wrong in one of the two states. Falls back to onbookee's
+    // own click handling for these two (1s spinner cost is acceptable
+    // for login flow and rare cart visits). Revisit if onbookee adds an
+    // auth-state postMessage.
   };
   var interceptEls = {};
   var interceptWrapper = null;
