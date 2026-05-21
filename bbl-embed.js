@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.7';
+  var VERSION = '2026-05-20.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -237,16 +237,13 @@
       var svg = overlay.firstChild;
       if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
     }
-    // Treat the trigger itself as activity and (re)schedule a debounced
-    // hide. ReceiveMyHeight will keep extending this; if onbookee goes
-    // silent after a non-height trigger (e.g. a RouteChanged where the
-    // layout height didn't change, so no new height is sent — observed
-    // on /appointment/...?facility=&id= sub-routes), we still hide via
-    // this debounce rather than waiting for the 10s failsafe.
-    // 500ms (vs ReceiveMyHeight's 300ms) gives onbookee a beat to start
-    // sending heights before we give up.
+    // Cancel any pending ReceiveMyHeight debounce — without this, re-showing
+    // during the 300ms debounce window gets undone by the already-scheduled
+    // hide. Matters when onbookee fires a second ShowOrigin / RouteChanged
+    // shortly after a prior load settled (e.g. /pricing's double-mount).
+    // Note: targeted re-schedule lives in the RouteChanged handler below —
+    // see comment there.
     clearTimeout(heightDebounce);
-    heightDebounce = setTimeout(function () { hideOverlay('debounce-after-show'); }, 500);
     clearTimeout(overlayFailsafe);
     overlayFailsafe = setTimeout(function () { hideOverlay('failsafe'); }, OVERLAY_FAILSAFE_MS);
   }
@@ -335,6 +332,15 @@
     }
     if (data && data.type === 'RouteChanged') {
       showOverlay('route-changed');
+      // showOverlay just cleared heightDebounce. If onbookee follows up with
+      // heights they'll reschedule it to 300ms. But when the new route's
+      // layout height matches the previous (no visible change — observed on
+      // /appointment/...?facility=&id= sub-routes), onbookee sends no height
+      // and the overlay would hang until the 10s failsafe. Schedule a 500ms
+      // backup hide; any incoming height resets it. Scoped to RouteChanged
+      // because other triggers (iframe-load, ShowOrigin, loading-height)
+      // are reliably followed by heights and would regress on slow boots.
+      heightDebounce = setTimeout(function () { hideOverlay('route-no-height'); }, 500);
     }
     if (data && data.type === 'ReceiveMyHeight' && data.message && data.message.height === 331) {
       showOverlay('loading-height');
