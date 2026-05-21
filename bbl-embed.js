@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.12';
+  var VERSION = '2026-05-21.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -72,16 +72,60 @@
   //   bblInterceptPos('classes', {...}) // live-tweak one intercept's style
   //   bblInterceptList()                // log current configs
   // Once positions look right, copy the final styles back into this config.
+  // Desktop nav layout in onbookee (≥844px viewport): iframe is full-width
+  // with 80px top margin in parent, body 24px L/R padding, header bar 1120px
+  // centered, 59px tall, flush to iframe top (intercept top:0).
+  // Left cluster (cumulative left offset from header left, w/ 24px gaps):
+  //   Classes               x=0   w=51
+  //   Sauna Booking         x=75  w=107
+  //   Certifications        x=206 w=93
+  //   BBL Society Essentials x=323 w=165
+  //   Membership            x=512 w=90
+  // Right cluster (cumulative offset from header right, w/ 0 gap):
+  //   Login/Signup          right=0   w=95
+  //   Cart                  right=95  w=40  h=58
+  // calc(50% - 560px + X) positions an element X pixels right of the
+  // centered 1120px header's left edge; mirrored for right offsets.
+  // Below 844px the layout wraps and these values are wrong — minWidth
+  // gates them out at narrower viewports.
   var NAV_INTERCEPTS = {
-    // Example (commented out — fill in after measuring):
-    // classes: {
-    //   href: '/schedule#/class-schedule/r/2094',
-    //   style: { bottom: '0', left: '0%', width: '20%', height: '50px' }
-    // },
-    // memberships: {
-    //   href: '/memberships#/pricing/r/2094/loc/2344?group=0',
-    //   style: { bottom: '0', left: '20%', width: '20%', height: '50px' }
-    // }
+    classes: {
+      href: '/schedule#/class-schedule/r/2094',
+      minWidth: 844,
+      style: { top: '0', left: 'calc(50% - 560px)', width: '51px', height: '59px' }
+    },
+    sauna: {
+      href: '/schedule#/appointment/r/2094',
+      minWidth: 844,
+      style: { top: '0', left: 'calc(50% - 485px)', width: '107px', height: '59px' }
+    },
+    certifications: {
+      href: '/schedule#/courses/r/2094',
+      minWidth: 844,
+      style: { top: '0', left: 'calc(50% - 354px)', width: '93px', height: '59px' }
+    },
+    essentials: {
+      href: '/schedule#/products/r/2094',
+      minWidth: 844,
+      style: { top: '0', left: 'calc(50% - 237px)', width: '165px', height: '59px' }
+    },
+    membership: {
+      href: '/memberships#/pricing/r/2094/loc/2344?group=0',
+      minWidth: 844,
+      style: { top: '0', left: 'calc(50% - 48px)', width: '90px', height: '59px' }
+    },
+    cart: {
+      // TODO: verify onbookee URL for cart — placeholder /cart for now.
+      href: '/schedule#/cart',
+      minWidth: 844,
+      style: { top: '0', right: 'calc(50% - 465px)', width: '40px', height: '58px' }
+    },
+    login: {
+      // TODO: verify onbookee URL for login — placeholder /login for now.
+      href: '/schedule#/login',
+      minWidth: 844,
+      style: { top: '0', right: 'calc(50% - 560px)', width: '95px', height: '59px' }
+    }
   };
   var interceptEls = {};
   var interceptWrapper = null;
@@ -487,6 +531,7 @@
     Object.keys(NAV_INTERCEPTS).forEach(function (name) {
       var def = NAV_INTERCEPTS[name];
       if (def.pages && def.pages.indexOf(location.pathname) === -1) return;
+      if (def.minWidth && window.innerWidth < def.minWidth) return;
       var a = document.createElement('a');
       a.href = def.href;
       a.className = 'bbl-intercept';
@@ -499,7 +544,13 @@
   }
 
   window.addEventListener('scroll', repositionInterceptWrapper, { passive: true });
-  window.addEventListener('resize', repositionInterceptWrapper);
+  // Rebuild on resize — covers minWidth threshold crossings and any future
+  // viewport-dependent positioning. Debounced via RAF.
+  var resizeRaf = 0;
+  window.addEventListener('resize', function () {
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(function () { resizeRaf = 0; buildIntercepts(); });
+  });
   // Re-build on parent SPA nav (the iframe element may be replaced).
   window.addEventListener('bbl-nav', buildIntercepts);
 
