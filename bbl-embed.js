@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.2';
+  var VERSION = '2026-05-20.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -178,7 +178,10 @@
   document.body.appendChild(overlay);
 
   // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker
+  // Temporary debug — surface init state unconditionally.
+  console.log('[bbl-embed] init', { pathname: location.pathname, oldWasVisible: oldWasVisible, hasOldOverlay: !!oldOverlay });
   if (oldWasVisible || location.pathname.includes('/schedule') || location.pathname.includes('/pricing')) {
+    console.log('[bbl-embed] init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     dbg('init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     overlay.classList.add('visible');
   }
@@ -200,6 +203,9 @@
     // which manifests as a freeze (cached iframe → near-simultaneous calls)
     // on desktop or a 100–200ms restart (cellular iframe load) on mobile.
     var wasVisible = overlay.classList.contains('visible');
+    // Temporary debug — surfacing show/hide reasons unconditionally while we
+    // diagnose stray overlay activations on the home page.
+    console.log('[bbl-embed] showOverlay', { reason: reason, wasVisible: wasVisible, pathname: location.pathname });
     dbg('showOverlay', { reason: reason, wasVisible: wasVisible });
     overlay.classList.add('visible');
     if (!wasVisible) {
@@ -216,6 +222,8 @@
   }
 
   function hideOverlay(reason) {
+    // Temporary debug — see note in showOverlay.
+    console.log('[bbl-embed] hideOverlay', { reason: reason, pathname: location.pathname });
     dbg('hideOverlay', reason);
     clearTimeout(overlayFailsafe);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
@@ -226,6 +234,8 @@
   }
 
   function watchIframe(iframe) {
+    // Temporary debug — see note in showOverlay.
+    console.log('[bbl-embed] watchIframe', { src: iframe.src, pathname: location.pathname });
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
     iframe.addEventListener('load', function () {
@@ -257,6 +267,11 @@
   }).observe(document.body, { childList: true, subtree: true });
 
   window.addEventListener('message', function (e) {
+    // Temporary debug — log ALL postMessages including rejected ones so we
+    // can see what third parties are firing on the home page.
+    var preview;
+    try { preview = typeof e.data === 'object' ? JSON.stringify(e.data).slice(0, 200) : String(e.data).slice(0, 200); } catch (_) { preview = '[unserializable]'; }
+    console.log('[bbl-embed] postMessage', { origin: e.origin, pathname: location.pathname, data: preview });
     // Filter to onbookee-origin messages. Without this, any third party that
     // happens to post a {type:"ShowOrigin"|"RouteChanged"|"ReceiveMyHeight"}
     // message (Framer's router, embedded analytics, etc.) would trigger our
