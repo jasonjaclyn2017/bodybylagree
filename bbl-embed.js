@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-20.9';
+  var VERSION = '2026-05-20.10';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -210,15 +210,13 @@
   var heightDebounce = null;
   var overlayFailsafe = null;
 
-  // If the overlay is shown but the iframe goes completely silent (no
-  // ReceiveMyHeight arrives, e.g. iframe fires a stray load event from
-  // internal redirects/posthog/etc), give up after this long and hide it
-  // anyway so the user isn't stranded. Bumped from 5s → 10s because slow
-  // onbookee loads on RouteChanged can sit for >5s before the next height
-  // arrives (especially when other scripts like clarity.js stall the main
-  // thread). The failsafe also gets pushed back on each ReceiveMyHeight
-  // (see handler below) — any height = proof of life.
-  var OVERLAY_FAILSAFE_MS = 10000;
+  // If the overlay is shown but the iframe goes completely silent, give
+  // up after this long and hide it anyway so the user isn't stranded.
+  // Dropped to 4s — most observed slow paths are now handled by the
+  // RouteChanged 500ms backup hide and the per-height failsafe reset
+  // (any height = proof of life). 4s should only trigger on genuinely
+  // stuck iframes.
+  var OVERLAY_FAILSAFE_MS = 4000;
 
   function showOverlay(reason) {
     // Only reset the SMIL clock when transitioning hidden → visible. Each
@@ -265,6 +263,18 @@
     console.log('[bbl-embed] watchIframe', { src: iframe.src, pathname: location.pathname });
     dbg('watchIframe', { src: iframe.src });
     showOverlay('watchIframe-init');
+    // Temporary debug — observe iframe.src attribute changes to diagnose
+    // why some in-iframe clicks (Membership) cause two ShowOrigin events.
+    // If src changes once, onbookee remounts via its SPA; if src changes
+    // twice, something is forcing a second iframe-level navigation
+    // (e.g. onbookee's link handler using location.href, or a redirect).
+    new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].attributeName === 'src') {
+          console.log('[bbl-embed] iframe.src changed', { newSrc: iframe.src, pathname: location.pathname });
+        }
+      }
+    }).observe(iframe, { attributes: true, attributeFilter: ['src'] });
     iframe.addEventListener('load', function () {
       // iframe.load fires when the iframe document AND all subresources
       // (scripts, images, etc.) finish loading. In practice this is LATER
