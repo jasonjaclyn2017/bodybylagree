@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; }
+
+
+  /* ---- shell ---- */
+  .bbl-wrap { background: #FFFBF2; padding: clamp(40px, 5vw, 64px) clamp(16px, 4vw, 32px); box-sizing: border-box; font-family: 'Manrope', system-ui, sans-serif; position: relative; }
+  /* Hero-video bottom edge sits 30px BELOW the section top, so the hexagon tip pokes ~30px above it at any width */
+  .bbl-annot-line { position: absolute; left: 0; right: 0; top: calc(clamp(40px, 5vw, 64px) + 30px); border-top: 2px dashed #C75D4A; z-index: 0; pointer-events: none; }
+  .bbl-annot-label { position: absolute; top: calc(clamp(40px, 5vw, 64px) + 4px); left: 24px; background: #C75D4A; color: #FBF7EE; font-size: 11px; font-weight: 600; letter-spacing: .09em; padding: 4px 11px; border-radius: 3px; white-space: nowrap; z-index: 0; pointer-events: none; }
+
+  .bbl-section { position: relative; width: 100%; max-width: 1180px; margin: 0 auto; filter: drop-shadow(0 -6px 12px rgba(10,9,7,.32)) drop-shadow(0 22px 46px rgba(20,18,14,.20)) drop-shadow(0 5px 12px rgba(20,18,14,.10)); }
+
+  /* ---- hexagon frame: fixed 50px points via calc(), variable height, ZERO js ---- */
+  .bbl-hex { position: absolute; clip-path: polygon(0px 50px, 50% 0px, 100% 50px, 100% calc(100% - 50px), 50% 100%, 0px calc(100% - 50px)); }
+
+  /* ---- ample uniform padding retires the diagonal-clearance math ---- */
+  .bbl-pad { position: relative; z-index: 2; padding: 92px clamp(28px, 5vw, 72px) 104px; box-sizing: border-box; }
+
+  /* ---- interior registration brackets (15px corner ticks) ---- */
+  .bbl-tick { position: absolute; width: 15px; height: 15px; }
+
+  /* ---- heading block ---- */
+  .bbl-head { text-align: center; max-width: 760px; margin: 0 auto 52px; }
+  .bbl-eyebrow-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .bbl-rule { height: 1px; background: rgba(210,205,194,.4); }
+  .bbl-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #D2CDC2; }
+  .bbl-wordmark { margin: 20px auto 0; max-width: 720px; }
+  .bbl-wordmark img { display: block; width: 100%; height: auto; }
+  .bbl-diamond-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; }
+  .bbl-diamond { width: 6px; height: 6px; background: #D2CDC2; transform: rotate(45deg); }
+
+  /* ---- two columns ---- */
+  .bbl-grid { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(36px, 4vw, 56px); align-items: start; }
+
+  /* prose column is its own container → heading fits to ITS width via cqi (no js) */
+  .bbl-prose { min-width: 0; overflow: hidden; container-type: inline-size; }
+  .bbl-display { margin: 0; font-weight: 300; font-size: clamp(24px, 9.6cqi, 36px); line-height: 1.04; letter-spacing: -0.02em; white-space: nowrap; color: #FBF7EE; }
+  .bbl-text { margin: 18px 0 0; font-size: clamp(15px, 1.45vw, 17px); line-height: 1.72; color: #B8B2A5; }
+  .bbl-text--first { margin-top: 28px; }
+  .bbl-offer { margin-top: 30px; padding-top: 24px; border-top: 1px solid rgba(210,205,194,.20); }
+  .bbl-offer-strong { font-size: 17px; font-weight: 700; letter-spacing: .005em; color: #FBF7EE; }
+  .bbl-offer-soft { font-weight: 500; font-size: 17px; color: #D2CDC2; margin-left: 8px; }
+
+  /* ---- Book Now CTA (rounded pill, matches site buttons) ---- */
+  .bbl-claim { display: inline-flex; align-items: center; gap: 10px; margin-top: 20px; padding: 9px 20px; background: #0D0C0B; color: #FFFFFF; border: 1px solid #FFFFFF; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; text-decoration: none; border-radius: 100px; transition: background .4s ease, color .4s ease, transform .45s cubic-bezier(.2,.7,.2,1); }
+  .bbl-claim:hover { background: #FFFFFF; color: #0D0C0B; transform: translateY(-2px); }
+  .bbl-claim svg { transition: transform .5s cubic-bezier(.2,.7,.2,1); }
+  .bbl-claim:hover svg { transform: translateX(4px); }
+
+  /* ---- mosaic ---- */
+  .bbl-mosaic { display: grid; grid-template-columns: 1fr; grid-template-rows: auto; height: auto; gap: 3px; background: #0D0C0B; min-width: 0; box-shadow: 6px 6px 30px -4px #2c2c2c; }
+  /* Heights flow from width via aspect-ratio at ALL widths — no collapse crossing any breakpoint. Cut another 25%. */
+  .bbl-cell--feature { aspect-ratio: 19 / 12; }
+  .bbl-cell--band { aspect-ratio: 19 / 8; }
+  .bbl-cell { position: relative; z-index: 1; display: block; overflow: hidden; text-decoration: none; transition: transform .55s cubic-bezier(.2,.7,.2,1); transform-origin: center; }
+  .bbl-cell:hover { transform: scale(1.05); z-index: 10; }
+  .bbl-media { position: absolute; inset: -1px; transition: filter .55s ease; will-change: filter; }
+  .bbl-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .9s cubic-bezier(.2,.7,.2,1); will-change: transform; }
+  .bbl-scrim { position: absolute; inset: 0; }
+
+  /* sibling-dimming via :has() — hovering one cell darkens the OTHERS, no js */
+  .bbl-mosaic:has(.bbl-cell:hover) .bbl-cell:not(:hover) .bbl-media { filter: brightness(.4) saturate(.85); }
+  .bbl-cell:hover .bbl-media { filter: brightness(1.04) saturate(1); }
+  .bbl-cell:hover .bbl-img { transform: scale(1.03); }
+
+  .bbl-placeholder { position: absolute; inset: 0; background-color: #16140F; background-image: repeating-linear-gradient(135deg, rgba(210,205,194,.07) 0px, rgba(210,205,194,.07) 2px, transparent 2px, transparent 12px); display: flex; align-items: center; justify-content: center; }
+  .bbl-placeholder span { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: rgba(210,205,194,.5); }
+
+  .bbl-cap { position: absolute; left: 30px; right: 74px; bottom: 26px; z-index: 2; }
+  .bbl-label { transition: transform .55s cubic-bezier(.2,.7,.2,1); }
+  .bbl-cell:hover .bbl-label { transform: translateY(-2px); }
+  .bbl-title { display: block; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: #FBF7EE; }
+  .bbl-title--lg { font-size: 24px; }
+  .bbl-title--sm { font-size: 19px; line-height: 1.2; }
+  .bbl-ul { display: block; height: 1.5px; width: 0; background: #D2CDC2; margin-top: 8px; transition: width .55s cubic-bezier(.2,.7,.2,1); }
+  .bbl-cell:hover .bbl-ul { width: 100%; }
+  .bbl-sub { display: block; margin-top: 9px; font-size: 13px; font-weight: 500; letter-spacing: .02em; color: rgba(251,247,238,.74); }
+  .bbl-chevron { position: absolute; right: 30px; top: 50%; z-index: 2; transform: translate(0,-50%); color: #D2CDC2; opacity: .4; transition: opacity .5s ease, color .5s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+  .bbl-cell:hover .bbl-chevron { opacity: 1; color: #eee; transform: translate(8px,-50%); }
+
+  /* ===== breakpoints (the only "responsive logic", all declarative) ===== */
+
+  /* Tablet + mobile: tighten the heading gap and drop the offer divider */
+  @media (max-width: 1199px) {
+    .bbl-head { margin-bottom: 30px; }
+    .bbl-offer { margin-top: 22px; padding-top: 0; border-top: none; }
+  }
+
+  /* Mobile: collapse to a single column, drop the corner ticks */
+  @media (max-width: 805px) {
+    .bbl-grid { grid-template-columns: 1fr; }
+    .bbl-tick { display: none; }
+  }
+
+  /* Tightest phones (iPhone Pro Max ≈440px + wider Androids): crush the cream side margin to reclaim width */
+  @media (max-width: 480px) {
+    .bbl-wrap { padding-left: 2px; padding-right: 2px; }
+  }
+
+  /* ===== spec checklist (NOT part of the design — delete in production) ===== */
+  .bbl-spec { max-width: 1180px; margin: 44px auto 0; box-sizing: border-box; }
+  .bbl-spec-card { border: 1px solid #E7E1D2; background: #FFFFFF; border-radius: 12px; padding: 30px 34px 34px; box-shadow: 0 1px 2px rgba(20,18,14,.04); }
+  .bbl-spec-tag { display: inline-flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #C75D4A; }
+  .bbl-spec-tag::before { content: ''; display: block; width: 7px; height: 7px; background: #C75D4A; transform: rotate(45deg); }
+  .bbl-spec-title { margin: 12px 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: #1A1714; }
+  .bbl-spec-lede { margin: 0 0 24px; font-size: 13.5px; line-height: 1.6; color: #6B6557; max-width: 78ch; }
+  .bbl-spec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px 40px; }
+  .bbl-spec-h { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #9C9484; }
+  .bbl-spec-item { display: flex; gap: 11px; align-items: flex-start; padding: 5px 0; font-size: 13px; line-height: 1.52; color: #3D3830; }
+  .bbl-spec-ck { flex: 0 0 auto; width: 6px; height: 6px; margin-top: 6px; background: #C75D4A; transform: rotate(45deg); }
+  .bbl-mono { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 11.5px; background: #F4EFE2; padding: 1px 6px; border-radius: 5px; color: #1A1714; white-space: nowrap; }
+  @media (max-width: 720px) { .bbl-spec-grid { grid-template-columns: 1fr; } }
+</style>
+</helmet>
+
+<div class="bbl-wrap">
+  <!-- Page-layout annotation: marks where a hero video sits above this section -->
+  <div class="bbl-annot-line"></div>
+  <div class="bbl-annot-label">(hero video above)</div>
+
+  <section class="bbl-section" data-screen-label="The BBL Society Experience">
+
+    <!-- Hexagon frame layers -->
+    <div class="bbl-hex" style="inset: 0; background: #D2CDC2;"></div>
+    <div class="bbl-hex" style="inset: 1.5px; background: #0D0C0B;"></div>
+    <div class="bbl-hex" style="inset: 7px; background: rgba(210,205,194,.55);"></div>
+    <div class="bbl-hex" style="inset: 8.5px; background: #0D0C0B;"></div>
+
+    <!-- Content -->
+    <div class="bbl-pad">
+
+      <!-- Interior registration brackets -->
+      <div class="bbl-tick" style="left: 26px; top: 26px; border-left: 1px solid rgba(210,205,194,.24); border-top: 1px solid rgba(210,205,194,.24);"></div>
+      <div class="bbl-tick" style="right: 26px; top: 26px; border-right: 1px solid rgba(210,205,194,.24); border-top: 1px solid rgba(210,205,194,.24);"></div>
+      <div class="bbl-tick" style="left: 26px; bottom: 26px; border-left: 1px solid rgba(210,205,194,.24); border-bottom: 1px solid rgba(210,205,194,.24);"></div>
+      <div class="bbl-tick" style="right: 26px; bottom: 26px; border-right: 1px solid rgba(210,205,194,.24); border-bottom: 1px solid rgba(210,205,194,.24);"></div>
+
+      <!-- Heading block -->
+      <div class="bbl-head">
+        <div class="bbl-eyebrow-row">
+          <span class="bbl-rule" style="width: 22px;"></span>
+          <span class="bbl-eyebrow">Precision Strength Training</span>
+          <span class="bbl-rule" style="width: 22px;"></span>
+        </div>
+        <h2 class="bbl-wordmark"><img src="assets/bbl-experience-scaled.png" alt="The BBL Society Experience"></h2>
+        <div class="bbl-diamond-row">
+          <span class="bbl-rule" style="width: 54px; background: rgba(210,205,194,.45);"></span>
+          <span class="bbl-diamond"></span>
+          <span class="bbl-rule" style="width: 54px; background: rgba(210,205,194,.45);"></span>
+        </div>
+      </div>
+
+      <!-- Two columns -->
+      <div class="bbl-grid">
+
+        <!-- Left: prose (its own container for the cqi auto-fit heading) -->
+        <div class="bbl-prose">
+          <p class="bbl-display">Built with Intention</p>
+          <p class="bbl-text bbl-text--first">For busy lives that move with purpose and demand more. This is where strength meets precision, and every rep hits deeper.</p>
+          <p class="bbl-text">Expect expert-led coaching, an elevated vibe, and a community that pushes you to level up—slow, controlled, and unapologetically confident.</p>
+          <p class="bbl-text">Train on 20 Mega Pro machines, then reset in our Sunlighten mPulse sauna. Strength, sweat, and a little luxury. Serving Far North Central San Antonio—Stone Oak, Timberwood Park, and beyond.</p>
+          <div class="bbl-offer">
+            <span class="bbl-offer-strong">3 classes for $60.</span>
+            <span class="bbl-offer-soft">Your Mega is waiting.</span>
+            <div>
+              <a href="/schedule" class="bbl-claim">Book Now</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: continuous immersive image mosaic -->
+        <div class="bbl-mosaic">
+
+          <!-- Feature: Lagree Method -->
+          <a href="/method" class="bbl-cell bbl-cell--feature">
+            <div class="bbl-media">
+              <div class="bbl-placeholder"><span>lagree class photo</span></div>
+              <img class="bbl-img" referrerpolicy="no-referrer" src="https://framerusercontent.com/images/TV3s5XESy3EjSEtkc9ganrGtJ4.jpg?scale-down-to=1024" alt="Lagree Megaformer class in progress at BBL Society" style="object-position: center 30%;">
+              <div class="bbl-scrim" style="background: linear-gradient(180deg, rgba(13,12,11,.05) 0%, rgba(13,12,11,.12) 42%, rgba(13,12,11,.82) 100%);"></div>
+            </div>
+            <div class="bbl-cap">
+              <div class="bbl-label">
+                <span style="display: inline-block;">
+                  <span class="bbl-title bbl-title--lg">The Lagree Method</span>
+                  <span class="bbl-ul"></span>
+                </span>
+                <span class="bbl-sub">20 Mega Pro machines</span>
+              </div>
+            </div>
+            <div class="bbl-chevron">
+              <svg width="18" height="92" viewBox="0 0 18 92" fill="none" style="display: block;"><polyline points="3,12 15,46 3,80" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+            </div>
+          </a>
+
+          <!-- Infrared Sauna -->
+          <a href="/method" class="bbl-cell bbl-cell--band">
+            <div class="bbl-media">
+              <div class="bbl-placeholder"><span>sauna photo</span></div>
+              <img class="bbl-img" referrerpolicy="no-referrer" src="https://framerusercontent.com/images/cjm6uk0LTFiozLObuK1lXO8MB9M.jpg?scale-down-to=1024" alt="Sunlighten mPulse infrared sauna recovery suite">
+              <div class="bbl-scrim" style="background: linear-gradient(180deg, rgba(13,12,11,.05) 0%, rgba(13,12,11,.15) 40%, rgba(13,12,11,.84) 100%);"></div>
+            </div>
+            <div class="bbl-cap" style="bottom: 24px;">
+              <div class="bbl-label">
+                <span style="display: inline-block;">
+                  <span class="bbl-title bbl-title--sm">Infrared Sauna Recovery</span>
+                  <span class="bbl-ul"></span>
+                </span>
+                <span class="bbl-sub">Sunlighten mPulse suite</span>
+              </div>
+            </div>
+            <div class="bbl-chevron">
+              <svg width="18" height="92" viewBox="0 0 18 92" fill="none" style="display: block;"><polyline points="3,12 15,46 3,80" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+            </div>
+          </a>
+
+          <!-- Certification -->
+          <a href="/method" class="bbl-cell bbl-cell--band">
+            <div class="bbl-media">
+              <div class="bbl-placeholder"><span>certification photo</span></div>
+              <img class="bbl-img" referrerpolicy="no-referrer" src="https://framerusercontent.com/images/gbcCGXBtAxZB2CMgPx4xOfk.jpg?scale-down-to=1024" alt="Lagree instructor certification course at BBL Society">
+              <div class="bbl-scrim" style="background: linear-gradient(180deg, rgba(13,12,11,.05) 0%, rgba(13,12,11,.15) 40%, rgba(13,12,11,.84) 100%);"></div>
+            </div>
+            <div class="bbl-cap" style="bottom: 24px;">
+              <div class="bbl-label">
+                <span style="display: inline-block;">
+                  <span class="bbl-title bbl-title--sm">Lagree Certification</span>
+                  <span class="bbl-ul"></span>
+                </span>
+                <span class="bbl-sub">Become an instructor</span>
+              </div>
+            </div>
+            <div class="bbl-chevron">
+              <svg width="18" height="92" viewBox="0 0 18 92" fill="none" style="display: block;"><polyline points="3,12 15,46 3,80" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+            </div>
+          </a>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Framer reproduction checklist (spec annotation — remove in production) ===== -->
+  <div class="bbl-spec">
+    <div class="bbl-spec-card">
+      <span class="bbl-spec-tag">Framer handoff</span>
+      <div class="bbl-spec-title">Pixel-perfect reproduction checklist</div>
+      <p class="bbl-spec-lede">Details that aren't obvious from a glance at the code. Most of the layout is plain CSS grid + breakpoints, but these few things carry the look and are easy to get subtly wrong when rebuilding on Framer.</p>
+
+      <div class="bbl-spec-grid">
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Frame &amp; shape</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The hexagon points are a <b>fixed 50px</b> (<span class="bbl-mono">calc(100% − 50px)</span>), not a percentage — they must stay 50px no matter how tall the section grows. A stretched SVG would distort them.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The frame is <b>4 stacked <span class="bbl-mono">clip-path</span> layers</b> (insets 0 / 1.5 / 7 / 8.5px; cream → black → translucent cream → black) — that's what makes the hairline + inner double-line. If rebuilding as SVG, use one polygon with two strokes.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Section shadow is a <b>3-layer <span class="bbl-mono">drop-shadow</span></b> including a <b>negative-Y (top) shadow</b> that lifts the section above the hero video. Don't drop it.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Typography</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>"Built with Intention" auto-fits to the <b>prose column width</b> via container units <span class="bbl-mono">clamp(24px, 9.6cqi, 36px)</span> + <span class="bbl-mono">nowrap</span>; the column is <span class="bbl-mono">container-type: inline-size</span>. It is <b>not</b> viewport-sized — sizing to <span class="bbl-mono">vw</span> will be wrong.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The big "THE BBL SOCIETY EXPERIENCE" is an <b>image asset</b> (contrast baked in for the black bg), not live text — it scales via <span class="bbl-mono">width:100%</span>.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Font is <b>Manrope</b>: weight 300 for the display line, 600 for eyebrow/card titles, 700 for the offer.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Interaction</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Hovering <b>one</b> image dims the <b>other two</b> (<span class="bbl-mono">:has()</span> sibling rule), not a self-hover. On Framer this needs the mosaic to be <b>one component</b> holding shared hover state — variants alone can't reach siblings.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Hovered cell scales <span class="bbl-mono">1.05</span> and lifts via <span class="bbl-mono">z-index</span> so it <b>overlaps</b> neighbors; the inner image <b>also</b> scales <span class="bbl-mono">1.03</span> on a separate, slower curve. <b>No per-cell hover box-shadow</b> (intentionally removed) — the mosaic's only shadow is the static container shadow noted under Layout.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Chevron is a <b>2-line polyline (~140°)</b>, not an icon font. On hover: opacity <span class="bbl-mono">.4→1</span>, color <span class="bbl-mono">#D2CDC2→#eee</span>, slides <span class="bbl-mono">+8px</span> right. Title underline grows <span class="bbl-mono">0→100%</span>.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Placement</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The hexagon's top point <b>pokes ~30px above the hero-video bottom edge</b> (the dashed line) — a <b>fixed overlap</b>, no scroll trigger, no transition. Section top sits <span class="bbl-mono">30px</span> above that line at every width (coupled via <span class="bbl-mono">calc()</span>).</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The negative-Y drop-shadow reinforces the lift over the hero. Nothing below the section moves, so there are no layout gaps to chase.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Layout &amp; responsive</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Image heights come <b>only</b> from <span class="bbl-mono">aspect-ratio</span> (feature <span class="bbl-mono">19/12</span>, bands <span class="bbl-mono">19/8</span>) at <b>every</b> width — never hardcode px heights, or you'll reintroduce the collapse-at-breakpoint bug.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Bottom padding (<span class="bbl-mono">104px</span>) is <b>load-bearing</b>: it keeps a hover-popped image inside the 50px bottom point. Don't go below ~62px.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Breakpoints: 2-col <b>40/60</b> (<span class="bbl-mono">2fr 3fr</span>) ≥806px → 1-col &lt;806px; corner ticks hidden &lt;806px; cream side margin crushes to <span class="bbl-mono">2px</span> ≤480px. Columns are top-aligned (<span class="bbl-mono">align-items: start</span>).</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The <span class="bbl-mono">3px</span> gaps between images are real — the <b>black</b> (<span class="bbl-mono">#0D0C0B</span>) mosaic background shows through as thin seam lines.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The mosaic block sits on a <b>static offset shadow</b> (<span class="bbl-mono">box-shadow: 6px 6px 30px -4px #2c2c2c</span>) that grounds it against the black interior — this is separate from the (intentionally absent) per-cell hover shadow.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Tokens</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span><span class="bbl-mono">#FFFBF2</span> page · <span class="bbl-mono">#0D0C0B</span> frame · <span class="bbl-mono">#D2CDC2</span> cream accent · <span class="bbl-mono">#FBF7EE</span> near-white text · <span class="bbl-mono">#B8B2A5</span> body · <span class="bbl-mono">#C75D4A</span> spec/annotation accent.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Each image carries a bottom-up <b>dark scrim gradient</b> for label legibility (slightly stronger on the two bands than the feature). Feature image uses <span class="bbl-mono">object-position: center 30%</span>.</span></div>
+        </div>
+
+        <div class="bbl-spec-group">
+          <h4 class="bbl-spec-h">Before you ship</h4>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>The dashed <b>"(hero video above)"</b> marker shows where the <b>existing live hero video's bottom edge</b> sits and the 30px overlap — use it to position this section against the real hero, then <b>remove it</b>. This checklist is also a spec annotation — remove both in the production build.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>All three tiles currently point to <span class="bbl-mono">/method</span> (Sauna &amp; Certification pages are pending) and the offer CTA <b>Book Now</b> points to <span class="bbl-mono">/schedule</span> — repoint the tiles once the destination pages exist.</span></div>
+          <div class="bbl-spec-item"><span class="bbl-spec-ck"></span><span>Images currently load from <span class="bbl-mono">framerusercontent.com</span> with <span class="bbl-mono">referrerpolicy="no-referrer"</span>; re-host them as Framer assets and keep a placeholder fallback behind each.</span></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1200, &quot;height&quot;: 760}}"></script>
+</body>
+</html>
