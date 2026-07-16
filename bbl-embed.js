@@ -700,16 +700,34 @@
   };
 
   function initDarkHeader(header) {
+    // The Lagree pillar is dark for its whole length (its background stage owns
+    // the viewport the entire way down), so it keeps the dark header at every
+    // scroll position rather than only near the top like Home. Keyed off the
+    // component's own root class instead of the pathname so the page can be
+    // renamed freely — path checks would silently break on the next rename.
+    var wholePageDark = false;
     function updateHeader() {
       var isHome = location.pathname === '/' || location.pathname === '';
-      var atTop = isHome && window.scrollY <= 400;
-      header.classList.toggle('bbl-dark-header', atTop);
-      header.classList.toggle('bbl-light-header', !atTop);
+      var dark = wholePageDark || (isHome && window.scrollY <= 400);
+      header.classList.toggle('bbl-dark-header', dark);
+      header.classList.toggle('bbl-light-header', !dark);
+    }
+    // Framer hydrates route content async, so re-probe after nav with the same
+    // retry ladder used for the logo filters.
+    function refreshWholePageDark() {
+      wholePageDark = !!document.querySelector('.cine-root');
+      updateHeader();
+    }
+    function scheduleRefreshWholePageDark() {
+      refreshWholePageDark();
+      setTimeout(refreshWholePageDark, 100);
+      setTimeout(refreshWholePageDark, 500);
+      setTimeout(refreshWholePageDark, 1500);
     }
     window.addEventListener('scroll', updateHeader, { passive: true });
-    window.addEventListener('popstate', updateHeader);
-    window.addEventListener('bbl-nav', updateHeader);
-    updateHeader();
+    window.addEventListener('popstate', scheduleRefreshWholePageDark);
+    window.addEventListener('bbl-nav', scheduleRefreshWholePageDark);
+    scheduleRefreshWholePageDark();
   }
 
   // Hide header when scrolling down past a cushion, show when scrolling up.
