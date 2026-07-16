@@ -699,35 +699,34 @@
     window.dispatchEvent(new Event('bbl-nav'));
   };
 
+  // Pages that stay dark for their whole length, rather than only near the top
+  // as on Home — their background owns the viewport all the way down, so a cream
+  // header reads as a light band across a dark page.
+  //
+  // This must be decided from the path. Probing the DOM for the page's own
+  // content ('.cine-root') can't work: bbl-nav fires on pushState, which happens
+  // *before* Framer mounts the new route, so the probe answers for the page we
+  // just left. Landing on a dark page from Home-at-top that flashed the header
+  // cream for a beat (new path, old DOM) before correcting itself to dark.
+  // Trade-off: rename a page here and its header silently reverts to cream.
+  var DARK_PATHS = ['/method'];
+
   function initDarkHeader(header) {
-    // The Lagree pillar is dark for its whole length (its background stage owns
-    // the viewport the entire way down), so it keeps the dark header at every
-    // scroll position rather than only near the top like Home. Keyed off the
-    // component's own root class instead of the pathname so the page can be
-    // renamed freely — path checks would silently break on the next rename.
-    var wholePageDark = false;
+    function currentPath() {
+      var p = location.pathname.replace(/\/+$/, '');
+      return p === '' ? '/' : p;
+    }
     function updateHeader() {
-      var isHome = location.pathname === '/' || location.pathname === '';
-      var dark = wholePageDark || (isHome && window.scrollY <= 400);
+      var path = currentPath();
+      var dark = DARK_PATHS.indexOf(path) !== -1
+        || (path === '/' && window.scrollY <= 400);
       header.classList.toggle('bbl-dark-header', dark);
       header.classList.toggle('bbl-light-header', !dark);
     }
-    // Framer hydrates route content async, so re-probe after nav with the same
-    // retry ladder used for the logo filters.
-    function refreshWholePageDark() {
-      wholePageDark = !!document.querySelector('.cine-root');
-      updateHeader();
-    }
-    function scheduleRefreshWholePageDark() {
-      refreshWholePageDark();
-      setTimeout(refreshWholePageDark, 100);
-      setTimeout(refreshWholePageDark, 500);
-      setTimeout(refreshWholePageDark, 1500);
-    }
     window.addEventListener('scroll', updateHeader, { passive: true });
-    window.addEventListener('popstate', scheduleRefreshWholePageDark);
-    window.addEventListener('bbl-nav', scheduleRefreshWholePageDark);
-    scheduleRefreshWholePageDark();
+    window.addEventListener('popstate', updateHeader);
+    window.addEventListener('bbl-nav', updateHeader);
+    updateHeader();
   }
 
   // Hide header when scrolling down past a cushion, show when scrolling up.
