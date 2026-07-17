@@ -757,19 +757,38 @@
     window.addEventListener('scroll', update, { passive: true });
   }
 
-  var headerEl = findHeader();
-  if (headerEl) {
-    initDarkHeader(headerEl);
-    initHideOnScrollDown(headerEl);
-  } else {
-    var headerRetry = setInterval(function () {
-      headerEl = findHeader();
-      if (headerEl) {
-        clearInterval(headerRetry);
-        initDarkHeader(headerEl);
-        initHideOnScrollDown(headerEl);
-      }
-    }, 200);
+  // Framer renders the header client-side, so it does not exist when this script
+  // runs and we have to wait for it. That wait is why a dark page used to flash:
+  // links baked into a code component are raw <a href> that Framer's router does
+  // not own, so /method -> /sauna is a FULL page load. The new page painted the
+  // header in Framer's cream default, and only once we noticed it did it go dark
+  // — read as dark -> light -> dark across the navigation.
+  //
+  // A MutationObserver closes that window where a poll cannot: its callback runs
+  // as a microtask at the end of the task that inserted the header, which is
+  // before the browser paints. The old 200ms setInterval could not win — it was
+  // up to a full frame late by construction, and the flash was exactly that gap.
+  var headerInit = null;
+  function adoptHeader() {
+    var el = findHeader();
+    if (!el || el === headerInit) return !!headerInit;
+    headerInit = el;
+    // Order matters: class first, transition second. initHideOnScrollDown installs
+    // `transition: background-color .5s`, and if that were already on the element
+    // the very first dark/light toggle would *animate* from cream — turning the
+    // instant correction back into a visible 500ms fade.
+    initDarkHeader(el);
+    initHideOnScrollDown(el);
+    return true;
+  }
+  if (!adoptHeader()) {
+    var headerWatch = new MutationObserver(function () {
+      if (adoptHeader()) headerWatch.disconnect();
+    });
+    headerWatch.observe(document.documentElement, { childList: true, subtree: true });
+    // Backstop: if the header never shows up, stop watching every mutation on the
+    // page forever.
+    setTimeout(function () { headerWatch.disconnect(); }, 10000);
   }
 
 })();
