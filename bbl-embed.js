@@ -773,11 +773,17 @@
     var el = findHeader();
     if (!el || el === headerInit) return !!headerInit;
     headerInit = el;
-    // Order matters: class first, transition second. initHideOnScrollDown installs
-    // `transition: background-color .5s`, and if that were already on the element
-    // the very first dark/light toggle would *animate* from cream — turning the
-    // instant correction back into a visible 500ms fade.
     initDarkHeader(el);
+    // Then FLUSH before installing the transition, and do not remove this line.
+    // Calling initDarkHeader first is not on its own enough: style recalc is
+    // batched to the end of the task, so without a forced read the browser would
+    // see the new class and `transition: background-color .5s` in the same recalc
+    // and animate the first cream->dark correction — a 500ms fade that IS the
+    // flash we are here to kill. Reading offsetWidth commits the dark state while
+    // no transition exists yet, so it snaps; later Home-scroll toggles still
+    // animate normally. (Framer's own header rule is `transition: all` at
+    // duration 0s, so it never animates and is not a factor.)
+    void el.offsetWidth;
     initHideOnScrollDown(el);
     return true;
   }
