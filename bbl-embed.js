@@ -621,6 +621,21 @@
     // apply a single direct filter on the img.
     + '.bbl-dark-header [data-framer-name="Logo"] img{filter:brightness(0) invert(1)!important}'
     + '.bbl-light-header [data-framer-name="Logo"] img{filter:none!important}'
+    // Footer logo. The footer sits on #1a1a1a and the logo artwork is near-black
+    // on transparent, so unmodified it reads as a dark smudge. This CANNOT be
+    // fixed from Framer's Effects panel: Framer applies the effect to the logo's
+    // instance-container, which is an ancestor of [data-framer-name="Logo"], and
+    // neutralizeLogoAncestorFilters() below force-clears filters on exactly those
+    // ancestors (inline, !important, re-run on nav/resize). So the invert slider
+    // is a no-op by construction — it was set and silently stripped, which is
+    // what sent us hunting. Setting the filter on the img itself is immune: the
+    // neutralizer only walks ancestors, never the img. That same fact means this
+    // can't double-invert against a leftover Framer effect either.
+    // Scoped by the "Action" wrapper, which is unique to the footer's logo
+    // instance — the nav logo sits under "Logo and Hamburger" and keeps its
+    // dark/light behaviour above. Verified to match exactly one img on both a
+    // dark page (/sauna) and the light-header home page.
+    + '[data-framer-name="Action"] [data-framer-name="Logo"] img{filter:brightness(0) invert(1)!important}'
     + '.bbl-dark-header [data-border]{background-color:transparent!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)!important}'
     + '.bbl-dark-header [data-framer-name="Wave"]{background-color:rgba(255,255,255,0.15)!important}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)){background-color:#fff!important}'
