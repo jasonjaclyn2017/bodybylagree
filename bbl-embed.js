@@ -714,17 +714,16 @@
     window.dispatchEvent(new Event('bbl-nav'));
   };
 
-  // Pages that stay dark for their whole length, rather than only near the top
-  // as on Home — their background owns the viewport all the way down, so a cream
-  // header reads as a light band across a dark page.
+  // The header is dark on every page EXCEPT the two light-background pages
+  // (Schedule, Memberships). No page toggles between dark and cream on scroll —
+  // Home stays dark its whole length too.
   //
-  // This must be decided from the path. Probing the DOM for the page's own
-  // content ('.cine-root') can't work: bbl-nav fires on pushState, which happens
-  // *before* Framer mounts the new route, so the probe answers for the page we
-  // just left. Landing on a dark page from Home-at-top that flashed the header
-  // cream for a beat (new path, old DOM) before correcting itself to dark.
-  // Trade-off: rename a page here and its header silently reverts to cream.
-  var DARK_PATHS = ['/method', '/sauna', '/certification', '/about-us'];
+  // Decided purely from the path (an allowlist of the light pages). Probing the
+  // DOM for the page's own background can't work: bbl-nav fires on pushState,
+  // which happens *before* Framer mounts the new route, so the probe answers for
+  // the page we just left. Trade-off: rename Schedule/Memberships here or their
+  // header silently goes dark.
+  var LIGHT_PATHS = ['/schedule', '/memberships'];
 
   function initDarkHeader(header) {
     function currentPath() {
@@ -733,8 +732,7 @@
     }
     function updateHeader() {
       var path = currentPath();
-      var dark = DARK_PATHS.indexOf(path) !== -1
-        || (path === '/' && window.scrollY <= 400);
+      var dark = LIGHT_PATHS.indexOf(path) === -1;
       header.classList.toggle('bbl-dark-header', dark);
       header.classList.toggle('bbl-light-header', !dark);
     }
