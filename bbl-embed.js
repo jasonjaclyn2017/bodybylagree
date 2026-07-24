@@ -657,6 +657,16 @@
     + '.bbl-header-hidden{transform:translateY(-100%)!important}';
   document.head.appendChild(darkHeaderCSS);
 
+  // Disable the browser's native image drag site-wide so it can't hijack
+  // click-drag interactions (e.g. the Meet the Team drag-to-scroll). The CSS
+  // covers WebKit/Blink; the dragstart guard covers Firefox and the rest.
+  var noDragCSS = document.createElement('style');
+  noDragCSS.textContent = 'img{-webkit-user-drag:none;}';
+  document.head.appendChild(noDragCSS);
+  document.addEventListener('dragstart', function (e) {
+    if (e.target && e.target.tagName === 'IMG') e.preventDefault();
+  });
+
   // Walk every Logo's ancestor chain and force any element with a non-empty
   // filter to filter:none (inline !important so Framer's stylesheet can't win
   // back). Lets the img's own filter render the logo color directly without
