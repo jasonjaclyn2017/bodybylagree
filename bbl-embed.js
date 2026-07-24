@@ -724,7 +724,7 @@
   // just left. Landing on a dark page from Home-at-top that flashed the header
   // cream for a beat (new path, old DOM) before correcting itself to dark.
   // Trade-off: rename a page here and its header silently reverts to cream.
-  var DARK_PATHS = ['/method', '/sauna', '/certification'];
+  var DARK_PATHS = ['/method', '/sauna', '/certification', '/about-us'];
 
   function initDarkHeader(header) {
     function currentPath() {
