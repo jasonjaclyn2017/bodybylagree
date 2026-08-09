@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.1';
+  var VERSION = '2026-08-09.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -26,7 +26,14 @@
   // Feature-gated to the Navigation API (Chrome/Edge 102+, Safari 17.4+).
   // Browsers without it fall through to the existing hard-reload behavior;
   // the overlay's path-based fast-path keeps that experience tolerable.
-  var SPA_PATHS = ['/schedule', '/memberships', '/pricing', '/calendar'];
+  // /calendar is deliberately NOT here. Its embed is lazy-mounted mid-page,
+  // and intercepting the navigate events that Bookee's hash writes produce
+  // gives the browser new-navigation scroll handling — i.e. it scrolls the
+  // page back to the top on every iframe route change. Full reloads into
+  // /calendar are cheap (static content), so it doesn't need SPA treatment.
+  // If /calendar ever replaces /schedule, remove '/schedule' from this list
+  // (and from the overlay fast-path below) at the same time.
+  var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
 
   // Sync the iframe to the destination of a same-page navigation. The wrapper
   // only propagates iframe → parent hash; parent hash changes never make it
