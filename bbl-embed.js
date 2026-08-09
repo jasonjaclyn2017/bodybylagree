@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-05-21.10';
+  var VERSION = '2026-08-09.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -26,7 +26,7 @@
   // Feature-gated to the Navigation API (Chrome/Edge 102+, Safari 17.4+).
   // Browsers without it fall through to the existing hard-reload behavior;
   // the overlay's path-based fast-path keeps that experience tolerable.
-  var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
+  var SPA_PATHS = ['/schedule', '/memberships', '/pricing', '/calendar'];
 
   // Sync the iframe to the destination of a same-page navigation. The wrapper
   // only propagates iframe → parent hash; parent hash changes never make it
@@ -45,6 +45,7 @@
   // when the user clicks a header link while already at default state.
   var PAGE_DEFAULTS = {
     '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
+    '/calendar':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
     '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
   };
   // Updated by the postMessage handler below on every iframe RouteChanged.
@@ -222,7 +223,15 @@
   // rule that applies is the one on the element's STATE AT THE TIME OF
   // CHANGE — so .visible's 50ms rule governs adding the class (fade-in),
   // and the default 200ms rule governs removing it (fade-out).
-  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}#bbl-overlay.visible{opacity:1;pointer-events:auto;transition:opacity .1s ease}';
+  s.textContent = '#bbl-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgb(209,203,193);z-index:9;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}#bbl-overlay.visible{opacity:1;pointer-events:auto;transition:opacity .1s ease}'
+    // Contained mode: when the booking iframe lives inside an element marked
+    // data-bbl-overlay-scope (e.g. the /calendar page's embed wrapper), the
+    // overlay is re-parented into that element and covers only it instead of
+    // the whole viewport. border-radius:inherit keeps the wrapper's rounded
+    // corners; the svg cap stops the 800px megaformer from overflowing
+    // narrow wrappers.
+    + '#bbl-overlay.bbl-overlay-contained{position:absolute;border-radius:inherit}'
+    + '#bbl-overlay.bbl-overlay-contained svg{max-width:70%}';
   document.head.appendChild(s);
 
   // --- Overlay DOM — SVG Megaformer Loading Animation ---
@@ -367,8 +376,34 @@
     });
   }
 
+  // Re-parent the overlay depending on where the iframe lives. Inside a
+  // data-bbl-overlay-scope container (lazy-mounted embeds like /calendar's
+  // booking section) → overlay absolute inside that container. Anywhere else
+  // (full-page embeds: /schedule, /memberships) → overlay fixed on <body>.
+  // The re-append is also self-healing: if React unmounted a scoped wrapper
+  // and took the overlay node with it, the next watchIframe puts it back.
+  function updateOverlayScope(iframe) {
+    var scope = iframe && iframe.closest ? iframe.closest('[data-bbl-overlay-scope]') : null;
+    if (scope) {
+      if (getComputedStyle(scope).position === 'static') scope.style.position = 'relative';
+      if (overlay.parentNode !== scope) scope.appendChild(overlay);
+      overlay.classList.add('bbl-overlay-contained');
+    } else {
+      if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
+      overlay.classList.remove('bbl-overlay-contained');
+    }
+  }
+
   function watchIframe(iframe) {
     dbg('watchIframe', { src: iframe.src });
+    updateOverlayScope(iframe);
+    // Lazy-mounted embeds create #studioyou-embed after script init, so the
+    // scrollIntoView neutralization at the top of this file missed them.
+    // Re-apply here: StudioYouEmbed calls scrollIntoView on every
+    // RouteChanged, which would otherwise yank the page down to the booking
+    // section whenever the iframe navigates internally.
+    var embedHost = document.querySelector('#studioyou-embed');
+    if (embedHost) embedHost.scrollIntoView = function () {};
     showOverlay('watchIframe-init');
     // Build intercepts once the iframe is on the page.
     buildIntercepts();
@@ -733,6 +768,8 @@
   // which happens *before* Framer mounts the new route, so the probe answers for
   // the page we just left. Trade-off: rename Schedule/Memberships here or their
   // header silently goes dark.
+  // (/calendar is intentionally absent: dark is the default now, so the new
+  // calendar page gets the dark header for free.)
   var LIGHT_PATHS = ['/schedule', '/memberships'];
 
   function initDarkHeader(header) {
