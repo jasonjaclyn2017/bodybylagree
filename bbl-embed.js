@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.9';
+  var VERSION = '2026-08-10.10';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -101,29 +101,41 @@
   // centered 1120px header's left edge; mirrored for right offsets.
   // Below 844px the layout wraps and these values are wrong — minWidth
   // gates them out at narrower viewports.
+  // Pages that legitimately host the full-page booking embed. Intercepts
+  // are scoped here because Framer does NOT unmount the old page's embed
+  // on SPA nav (ghost iframe persists in the DOM), so iframe presence
+  // alone can't tell us we've left an embed page — observed 2026-08-10:
+  // wrapper survived a /schedule -> /calendar nav and ate the calendar's
+  // month-arrow clicks.
+  var EMBED_PAGES = ['/schedule', '/memberships'];
   var NAV_INTERCEPTS = {
     classes: {
       onbookeePath: '/class-schedule/r/2094',
+      pages: EMBED_PAGES,
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 560px)', width: '56px', height: '59px' }
     },
     sauna: {
       onbookeePath: '/appointment/r/2094',
+      pages: EMBED_PAGES,
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 485px)', width: '112px', height: '59px' }
     },
     certifications: {
       onbookeePath: '/courses/r/2094',
+      pages: EMBED_PAGES,
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 354px)', width: '98px', height: '59px' }
     },
     essentials: {
       onbookeePath: '/products/r/2094',
+      pages: EMBED_PAGES,
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 237px)', width: '75px', height: '59px' }
     },
     membership: {
       onbookeePath: '/pricing/r/2094/loc/2344?group=0',
+      pages: EMBED_PAGES,
       minWidth: 844,
       style: { top: '0', left: 'calc(50% - 145px)', width: '100px', height: '59px' }
     }
@@ -643,7 +655,7 @@
     document.body.appendChild(interceptWrapper);
     Object.keys(NAV_INTERCEPTS).forEach(function (name) {
       var def = NAV_INTERCEPTS[name];
-      if (def.pages && def.pages.indexOf(location.pathname) === -1) return;
+      if (def.pages && def.pages.indexOf(normalizedPath()) === -1) return;
       if (def.minWidth && window.innerWidth < def.minWidth) return;
       var a = document.createElement('a');
       // Same-page hash nav on whatever Framer page we're currently on.
