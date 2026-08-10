@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.4';
+  var VERSION = '2026-08-10.5';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -218,15 +218,7 @@
     // corners; the svg cap stops the 800px megaformer from overflowing
     // narrow wrappers.
     + '#bbl-overlay.bbl-overlay-contained{position:absolute;border-radius:inherit}'
-    + '#bbl-overlay.bbl-overlay-contained svg{max-width:70%}'
-    // Quiet mode: cover without the megaformer. Onbookee's /pricing tabs swap
-    // client-side in ~100-200ms, and starting + stopping a 3s animation inside
-    // that window reads as a flash. The overlay itself still goes up instantly
-    // (it has to — it's masking kenko's own loading indicator, and delaying it
-    // just uncovers theirs; tried in .1 and reverted in .3). Only the artwork
-    // waits. Fast swap = a brief flat cream panel, no animation at all.
-    + '#bbl-overlay svg{transition:opacity .15s ease}'
-    + '#bbl-overlay.bbl-overlay-quiet svg{opacity:0;transition:none}';
+    + '#bbl-overlay.bbl-overlay-contained svg{max-width:70%}';
   document.head.appendChild(s);
 
   // --- Overlay DOM — SVG Megaformer Loading Animation ---
@@ -336,28 +328,7 @@
   // stuck iframes.
   var OVERLAY_FAILSAFE_MS = 4000;
 
-  // How long the cover stays artwork-free on a /pricing-internal nav before
-  // the megaformer fades in. Must outlast the normal settle path (last
-  // ReceiveMyHeight + the 300ms hide debounce) so a healthy tab swap finishes
-  // in silence; a genuinely slow one still gets the animation.
-  var QUIET_MS = 450;
-  var quietTimer = null;
-
-  function isPricingRoute(route) {
-    return typeof route === 'string' && route.indexOf('/pricing') !== -1;
-  }
-
-  // Quiet only when we're already on /pricing AND not leaving it. nextRoute is
-  // null for the signals that carry no path (ShowOrigin, the 331 loading
-  // height) — treated as "staying put", which is the tab-swap case; if it
-  // turns out to be a real navigation the timer fires and the artwork appears.
-  function shouldQuiet(nextRoute) {
-    if (!isPricingRoute(lastIframeRoute)) return false;
-    if (nextRoute && !isPricingRoute(nextRoute)) return false;
-    return true;
-  }
-
-  function showOverlay(reason, nextRoute) {
+  function showOverlay(reason) {
     // Only reset the SMIL clock when transitioning hidden → visible. Each
     // nav triggers showOverlay() twice (once from watchIframe init, again
     // from the iframe's load event); calling setCurrentTime(0) on the
@@ -370,20 +341,6 @@
     if (!wasVisible) {
       var svg = overlay.firstChild;
       if (svg && svg.setCurrentTime) svg.setCurrentTime(0);
-      // Decided once per show, on the hidden → visible edge only. The repeat
-      // calls within a single nav must not restart the quiet timer, or a
-      // steady stream of signals would keep the artwork suppressed forever.
-      if (shouldQuiet(nextRoute)) {
-        dbg('overlay quiet', { reason: reason, ms: QUIET_MS });
-        overlay.classList.add('bbl-overlay-quiet');
-        clearTimeout(quietTimer);
-        quietTimer = setTimeout(function () {
-          overlay.classList.remove('bbl-overlay-quiet');
-        }, QUIET_MS);
-      } else {
-        clearTimeout(quietTimer);
-        overlay.classList.remove('bbl-overlay-quiet');
-      }
     }
     // Cancel any pending ReceiveMyHeight debounce — without this, re-showing
     // during the 300ms debounce window gets undone by the already-scheduled
@@ -399,11 +356,6 @@
   function hideOverlay(reason) {
     dbg('hideOverlay', reason);
     clearTimeout(overlayFailsafe);
-    // Cancel the pending fade-in but LEAVE the quiet class on: the overlay is
-    // mid-fade-out, and un-suppressing the artwork now would flash it in on
-    // the way out. The next show recomputes the class on its hidden→visible
-    // edge, so a stale quiet class can't leak into an unrelated nav.
-    clearTimeout(quietTimer);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (iframe) iframe.style.visibility = 'visible';
     requestAnimationFrame(function () {
@@ -511,7 +463,7 @@
       showOverlay('show-origin');
     }
     if (data && data.type === 'RouteChanged') {
-      showOverlay('route-changed', data.message && data.message.path);
+      showOverlay('route-changed');
       // showOverlay just cleared heightDebounce. If onbookee follows up with
       // heights they'll reschedule it to 300ms. But when the new route's
       // layout height matches the previous (no visible change — observed on
