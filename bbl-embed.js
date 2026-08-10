@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.6';
+  var VERSION = '2026-08-10.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -182,22 +182,47 @@
   // pre-paint background comment near the top). Cross-page navs and no-hash
   // header reset clicks are plain full reloads again — the iframe boots to
   // the destination via the wrapper's own hash-precedence handling.
+  // NOTE 2026-08-10.7: the wrapper ALSO watches the parent hash and
+  // SPA-navigates the iframe there itself — observed RouteChanged carrying
+  // the destination route 24ms after an intercept click. Forcing iframe.src
+  // here therefore reloaded a page the iframe had already reached, causing
+  // the flash-then-overlay dance. New approach: give the wrapper
+  // HASH_SYNC_GRACE_MS to report the target route via RouteChanged; only if
+  // it doesn't arrive do we force the reload (with overlay). Fast SPA navs
+  // get no overlay at all — the height===331 trigger still covers slow ones.
+  var HASH_SYNC_GRACE_MS = 400;
+  var pendingHashSync = null; // { hash, timer }
+  function cancelPendingHashSync(why) {
+    if (!pendingHashSync) return;
+    dbg('hash sync handled by wrapper', { hash: pendingHashSync.hash, why: why });
+    clearTimeout(pendingHashSync.timer);
+    pendingHashSync = null;
+  }
   window.addEventListener('hashchange', function () {
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (!iframe) return;
     if (!location.hash || location.hash.indexOf('#/') !== 0) return;
     if (isRecentlyEmittedRoute(location.hash)) return;
-    var target = IFRAME_ORIGIN + location.hash.slice(1);
-    dbg('sync iframe on hashchange', { target: target });
-    // The outgoing onbookee document stays alive for a beat after src is
-    // set and keeps sending ReceiveMyHeight — e.source === contentWindow
-    // matches both documents, so those stale heights would schedule a hide
-    // that fires before the new document boots, exposing onbookee's loader.
-    // reloadInFlight suppresses all hide scheduling until the new document
-    // announces itself (first ShowOrigin/RouteChanged after iframe load).
-    reloadInFlight = true;
-    showOverlay('sync-iframe');
-    iframe.src = target;
+    var hash = location.hash;
+    var target = IFRAME_ORIGIN + hash.slice(1);
+    if (pendingHashSync) clearTimeout(pendingHashSync.timer);
+    pendingHashSync = {
+      hash: hash,
+      timer: setTimeout(function () {
+        pendingHashSync = null;
+        dbg('sync iframe on hashchange (wrapper did not)', { target: target });
+        // The outgoing onbookee document stays alive for a beat after src
+        // is set and keeps sending ReceiveMyHeight — e.source ===
+        // contentWindow matches both documents, so those stale heights
+        // would schedule a hide that fires before the new document boots,
+        // exposing onbookee's loader. reloadInFlight suppresses hide
+        // scheduling until the iframe's load event.
+        reloadInFlight = true;
+        showOverlay('sync-iframe');
+        iframe.src = target;
+      }, HASH_SYNC_GRACE_MS)
+    };
+    dbg('hashchange: waiting for wrapper to sync', { hash: hash });
   });
 
   // Guard against double initialization
@@ -522,6 +547,12 @@
       lastIframeRoute = '#' + data.message.path;
       recordIframeRoute(lastIframeRoute);
       dbg('iframe RouteChanged', { route: lastIframeRoute });
+      // Wrapper SPA-navigated the iframe to the hash we were about to force
+      // — call off the pending src reload. Exact match only: a redirect
+      // chain that lands elsewhere falls through to the forced reload.
+      if (pendingHashSync && lastIframeRoute === pendingHashSync.hash) {
+        cancelPendingHashSync('route-changed match');
+      }
     }
     if (data && data.type === 'ReceiveClientRect') {
       // Onbookee polls for this when its modals (e.g. date picker) need to
