@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.10';
+  var VERSION = '2026-08-09.11';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -654,9 +654,15 @@
     // right edge differs: tablets keep wider gutters (button ~64px in, so
     // the hint needs to stand further left or the arrow lands ON the
     // button), phones pin it nearly flush (~16px).
+    // Tier boundaries are Bookee's internal breakpoints (iframe width ≈
+    // viewport width), calibrated empirically 2026-08-09: Bookee reflows its
+    // header around ~790px (Login/Signup collapses to an icon and the rows
+    // shift), so 768–779 needs the lower/left values while 796+ takes the
+    // tablet ones. Verified good at 634↓, 768–779, 796–802, and desktop.
     var w = window.innerWidth;
     if (w >= 844) return { top: '94px', right: 'calc(50% - 560px + 48px)' };
-    if (w >= 720) return { top: '102px', right: '78px' };
+    if (w >= 790) return { top: '102px', right: '78px' };
+    if (w >= 720) return { top: '132px', right: '68px' };
     return { top: '132px', right: '52px' };
   }
   function consumeDateParam() {
