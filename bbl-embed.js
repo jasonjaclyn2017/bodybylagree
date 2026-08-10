@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.4';
+  var VERSION = '2026-08-09.5';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -15,44 +15,43 @@
   }
   dbg('script init', { pathname: location.pathname, hash: location.hash, readyState: document.readyState });
 
-  // --- Force SPA navigation for embed-bearing pages ---
-  // Framer's compiler wraps links pointing to pages that contain iframe embeds
-  // with an override that forces a full document reload (location.href = ...).
-  // We intercept the resulting navigate event and convert it back to a same-
-  // document navigation. Framer's own router listens for navigate events and
-  // re-renders the destination page in place. End result: SPA navigation for
-  // /schedule, /memberships, /pricing — same as About/Method get for free.
-  //
-  // Feature-gated to the Navigation API (Chrome/Edge 102+, Safari 17.4+).
-  // Browsers without it fall through to the existing hard-reload behavior;
-  // the overlay's path-based fast-path keeps that experience tolerable.
-  // /calendar used to be deliberately absent: its lazy-mounted embed's hash
-  // writes made SPA nav scroll the page to the top on every iframe route
-  // change. The embed moved to /schedule permanently (calendar is browse-only
-  // now), so that hazard is gone — and /calendar NEEDS SPA treatment: a full
-  // reload flashes the white document background before the near-black page
-  // paints, which reads as a white blink when navigating in from the header.
-  var SPA_PATHS = ['/schedule', '/memberships', '/pricing', '/calendar'];
+  // The header is dark on every page EXCEPT the two light-background pages.
+  // Defined up here because the pre-paint background below needs it too.
+  // Trade-off: rename Schedule/Memberships and their header silently goes dark.
+  var LIGHT_PATHS = ['/schedule', '/memberships'];
+  function normalizedPath() {
+    var p = location.pathname.replace(/\/+$/, '');
+    return p === '' ? '/' : p;
+  }
 
-  // Sync the iframe to the destination of a same-page navigation. The wrapper
-  // only propagates iframe → parent hash; parent hash changes never make it
-  // back into the iframe. Without this, two classes of same-page clicks
-  // silently do nothing:
-  //   (a) header reset clicks — e.g. Schedule from /schedule#/pricing
-  //   (b) intra-page deep links — e.g. Claim Intro Offer
-  //       (/memberships#/pricing/.../?group=13008) when already on /memberships
-  // In both cases Framer's router no-ops (same path) and the iframe stays put.
-  // We bridge the gap by pointing iframe.src at the destination route
-  // (or the page's canonical default when the destination has no hash).
+  // --- Pre-paint document background ---
+  // Header links carry the HeaderLinkNav override (location.href = ...), so
+  // header navigation is a full document load. A new document's first paint
+  // starts from the browser's white default, which reads as a white blink
+  // when the destination page is near-black (/calendar et al). Setting the
+  // root element's background at script init runs before first paint, so the
+  // blink is dark-to-dark (or cream-to-cream for the light pages) instead.
+  //
+  // NOTE: this replaces the old SPA_PATHS navigate-intercept, which was
+  // REMOVED in 2026-08-09.5. The Framer runtime shipped with the 2026-08-09
+  // publish no longer re-renders after a foreign e.intercept() — verified on
+  // both staging and production: URL updated, old page stayed rendered.
+  // Full reloads are back to being the honest behavior; this pre-paint plus
+  // the overlay fast-path keep them visually quiet.
+  function updateDocBg() {
+    document.documentElement.style.backgroundColor =
+      LIGHT_PATHS.indexOf(normalizedPath()) === -1 ? '#0D0C0B' : 'rgb(210,205,194)';
+  }
+  updateDocBg();
+  window.addEventListener('bbl-nav', updateDocBg);
+  window.addEventListener('popstate', updateDocBg);
+
+  // The wrapper only propagates iframe → parent hash; parent hash changes
+  // never make it back into the iframe. The hashchange listener below bridges
+  // that gap for same-document fragment navs (our NAV_INTERCEPTS anchors,
+  // intra-page deep links like Claim Intro Offer) by pointing iframe.src at
+  // the new route directly.
   var IFRAME_ORIGIN = 'https://bodybylagreesociety.onbookee.com';
-  // iframePath: where to point iframe.src for a no-hash reset (initial src
-  // before onbookee's internal redirects). canonicalHash: the resting-state
-  // hash the iframe settles on after boot — used to suppress no-op resets
-  // when the user clicks a header link while already at default state.
-  var PAGE_DEFAULTS = {
-    '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
-    '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
-  };
   // Updated by the postMessage handler below on every iframe RouteChanged.
   // Used to distinguish wrapper-driven hash updates (which we must NOT
   // re-sync, since the iframe is already where the hash says) from
@@ -63,12 +62,12 @@
   // --- Click intercepts over onbookee's persistent nav ---
   // Each entry creates a transparent <a> positioned over a region of the
   // iframe. Clicking it navigates parent-side (same-page hash update + our
-  // syncIframeOnSamePageNav handler updating iframe.src) instead of letting
+  // the hashchange listener updating iframe.src) instead of letting
   // the click reach onbookee — avoiding the ~1s gap before onbookee sends
   // ShowOrigin/RouteChanged. Position values are CSS strings applied as
   // inline styles to the intercept element (which lives inside a wrapper
   // that mirrors the iframe's rect). Use any CSS units: px, %, calc().
-  //   pages:        optional array of parent pathnames; defaults to all SPA_PATHS.
+  //   pages:        optional array of parent pathnames; omitted = all pages.
   //   onbookeePath: target onbookee route (no origin). buildIntercepts wires
   //                 href = location.pathname + '#' + onbookeePath so each
   //                 click is a SAME-PAGE hash nav on the current Framer
@@ -168,48 +167,30 @@
     return false;
   }
 
-  function syncIframeOnSamePageNav(destUrl) {
-    if (destUrl.pathname !== location.pathname) return;      // different page — Framer router + wrapper hash-precedence handle it
+  // Fragment-only navigations (our NAV_INTERCEPTS anchors, intra-page deep
+  // links) are same-document natively — no reload to fight. All we need to
+  // do is point the iframe at the new route. hashchange fires AFTER the URL
+  // has updated, so location.hash IS the destination. The TTL guard filters
+  // out wrapper-driven hash echoes: if the iframe emitted this route within
+  // the last IFRAME_ROUTE_HISTORY_TTL_MS, the parent hash change is the
+  // wrapper catching up and the iframe is already there. Older history
+  // entries do NOT block — they're stale destinations the user is free to
+  // re-navigate to (e.g. via our NAV_INTERCEPT anchors).
+  //
+  // NOTE 2026-08-09.5: this replaces the navigate-event intercept (see the
+  // pre-paint background comment near the top). Cross-page navs and no-hash
+  // header reset clicks are plain full reloads again — the iframe boots to
+  // the destination via the wrapper's own hash-precedence handling.
+  window.addEventListener('hashchange', function () {
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (!iframe) return;
-    var targetPath;
-    if (destUrl.hash) {
-      // Intra-page deep link (case b). Already at target hash? Nothing to do.
-      if (destUrl.hash === location.hash) return;
-      // Suppress wrapper-driven hash updates: if the iframe emitted this
-      // route within the last IFRAME_ROUTE_HISTORY_TTL_MS, the parent
-      // hash change is the wrapper catching up and we shouldn't reload
-      // the iframe back to where it already is. Older history entries
-      // do NOT block — they're stale destinations the user is free to
-      // re-navigate to (e.g. via our NAV_INTERCEPT anchors).
-      if (isRecentlyEmittedRoute(destUrl.hash)) return;
-      targetPath = destUrl.hash.slice(1);                    // strip leading '#'
-    } else {
-      // Header reset click (case a). Skip if already at canonical default.
-      if (!location.hash) return;
-      var entry = PAGE_DEFAULTS[destUrl.pathname];
-      if (!entry) return;
-      if (location.hash === entry.canonicalHash) return;
-      targetPath = entry.iframePath;
-    }
-    var target = IFRAME_ORIGIN + targetPath;
-    dbg('sync iframe on same-page nav', { pathname: destUrl.pathname, target: target });
+    if (!location.hash || location.hash.indexOf('#/') !== 0) return;
+    if (isRecentlyEmittedRoute(location.hash)) return;
+    var target = IFRAME_ORIGIN + location.hash.slice(1);
+    dbg('sync iframe on hashchange', { target: target });
     showOverlay('sync-iframe');
     iframe.src = target;
-  }
-
-  if (typeof navigation !== 'undefined' && navigation && typeof navigation.addEventListener === 'function') {
-    navigation.addEventListener('navigate', function (e) {
-      if (!e.canIntercept) return;
-      var url;
-      try { url = new URL(e.destination.url); } catch (_) { return; }
-      if (url.origin !== location.origin) return;
-      if (SPA_PATHS.indexOf(url.pathname) === -1) return;
-      dbg('intercept navigate', { pathname: url.pathname, type: e.navigationType });
-      e.intercept({ handler: function () { return Promise.resolve(); } });
-      syncIframeOnSamePageNav(url);
-    });
-  }
+  });
 
   // Guard against double initialization
   var oldOverlay = document.getElementById('bbl-overlay');
@@ -597,7 +578,7 @@
       if (def.minWidth && window.innerWidth < def.minWidth) return;
       var a = document.createElement('a');
       // Same-page hash nav on whatever Framer page we're currently on.
-      // syncIframeOnSamePageNav handles this by updating iframe.src.
+      // The hashchange listener handles this by updating iframe.src.
       a.href = location.pathname + '#' + def.onbookeePath;
       a.className = 'bbl-intercept';
       a.dataset.bblIntercept = name;
@@ -900,26 +881,16 @@
   };
 
   // The header is dark on every page EXCEPT the two light-background pages
-  // (Schedule, Memberships). No page toggles between dark and cream on scroll —
-  // Home stays dark its whole length too.
-  //
-  // Decided purely from the path (an allowlist of the light pages). Probing the
-  // DOM for the page's own background can't work: bbl-nav fires on pushState,
-  // which happens *before* Framer mounts the new route, so the probe answers for
-  // the page we just left. Trade-off: rename Schedule/Memberships here or their
-  // header silently goes dark.
-  // (/calendar is intentionally absent: dark is the default now, so the new
-  // calendar page gets the dark header for free.)
-  var LIGHT_PATHS = ['/schedule', '/memberships'];
-
+  // (Schedule, Memberships) — LIGHT_PATHS, defined at the top of this file.
+  // No page toggles between dark and cream on scroll — Home stays dark its
+  // whole length too. Decided purely from the path: probing the DOM for the
+  // page's own background can't work, because bbl-nav fires on pushState,
+  // which happens *before* Framer mounts the new route, so the probe answers
+  // for the page we just left. (/calendar is intentionally absent: dark is
+  // the default, so the calendar page gets the dark header for free.)
   function initDarkHeader(header) {
-    function currentPath() {
-      var p = location.pathname.replace(/\/+$/, '');
-      return p === '' ? '/' : p;
-    }
     function updateHeader() {
-      var path = currentPath();
-      var dark = LIGHT_PATHS.indexOf(path) === -1;
+      var dark = LIGHT_PATHS.indexOf(normalizedPath()) === -1;
       header.classList.toggle('bbl-dark-header', dark);
       header.classList.toggle('bbl-light-header', !dark);
     }
