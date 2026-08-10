@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.5';
+  var VERSION = '2026-08-09.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
