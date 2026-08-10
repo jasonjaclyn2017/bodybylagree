@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.2';
+  var VERSION = '2026-08-10.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -189,8 +189,7 @@
     if (isRecentlyEmittedRoute(location.hash)) return;
     var target = IFRAME_ORIGIN + location.hash.slice(1);
     dbg('sync iframe on hashchange', { target: target });
-    // Not deferrable: setting iframe.src is a real reload, not a tab swap.
-    showOverlayNow('sync-iframe');
+    showOverlay('sync-iframe');
     iframe.src = target;
   });
 
@@ -329,49 +328,7 @@
   // stuck iframes.
   var OVERLAY_FAILSAFE_MS = 4000;
 
-  // Deferred show. Onbookee's /pricing tabs (New Member Offers, Class Packs,
-  // Memberships) are pure client-side swaps — they settle in well under the
-  // time it takes to read the overlay, so covering them just makes a fast
-  // interaction feel slow. For navs that stay inside /pricing we arm the
-  // overlay instead of showing it: if the iframe settles first, hideOverlay
-  // cancels the timer and nothing ever paints. A genuinely slow tab (cold
-  // cache, flaky connection) still gets covered once the timer fires.
-  //
-  // Must outlast the ReceiveMyHeight settle path: last height + 300ms debounce
-  // before hideOverlay runs. 500ms clears that with room for a couple of
-  // height messages trickling in.
-  var DEFER_OVERLAY_MS = 500;
-  var deferTimer = null;
-
-  function isPricingRoute(route) {
-    return typeof route === 'string' && route.indexOf('/pricing') !== -1;
-  }
-
-  // Defer only when we're already on /pricing AND we're not leaving it.
-  // nextRoute is null for the signals that carry no path (ShowOrigin, the 331
-  // loading height) — those are treated as "probably staying put", which is
-  // the common case for a tab swap; if it turns out to be a real navigation
-  // the timer fires and the overlay shows 500ms in.
-  function shouldDefer(nextRoute) {
-    if (!isPricingRoute(lastIframeRoute)) return false;
-    if (nextRoute && !isPricingRoute(nextRoute)) return false;
-    return true;
-  }
-
-  function showOverlay(reason, nextRoute) {
-    if (!overlay.classList.contains('visible') && shouldDefer(nextRoute)) {
-      dbg('showOverlay deferred', { reason: reason, ms: DEFER_OVERLAY_MS });
-      clearTimeout(deferTimer);
-      deferTimer = setTimeout(function () {
-        showOverlayNow('deferred:' + reason);
-      }, DEFER_OVERLAY_MS);
-      return;
-    }
-    showOverlayNow(reason);
-  }
-
-  function showOverlayNow(reason) {
-    clearTimeout(deferTimer);
+  function showOverlay(reason) {
     // Only reset the SMIL clock when transitioning hidden → visible. Each
     // nav triggers showOverlay() twice (once from watchIframe init, again
     // from the iframe's load event); calling setCurrentTime(0) on the
@@ -399,9 +356,6 @@
   function hideOverlay(reason) {
     dbg('hideOverlay', reason);
     clearTimeout(overlayFailsafe);
-    // Cancels an armed-but-unpainted deferred show: the iframe settled inside
-    // the grace window, so the overlay never needed to appear at all.
-    clearTimeout(deferTimer);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (iframe) iframe.style.visibility = 'visible';
     requestAnimationFrame(function () {
@@ -437,8 +391,7 @@
     // section whenever the iframe navigates internally.
     var embedHost = document.querySelector('#studioyou-embed');
     if (embedHost) embedHost.scrollIntoView = function () {};
-    // Not deferrable: a fresh iframe mount is always a real load.
-    showOverlayNow('watchIframe-init');
+    showOverlay('watchIframe-init');
     // Build intercepts once the iframe is on the page.
     buildIntercepts();
     iframe.addEventListener('load', function () {
@@ -510,7 +463,7 @@
       showOverlay('show-origin');
     }
     if (data && data.type === 'RouteChanged') {
-      showOverlay('route-changed', data.message && data.message.path);
+      showOverlay('route-changed');
       // showOverlay just cleared heightDebounce. If onbookee follows up with
       // heights they'll reschedule it to 300ms. But when the new route's
       // layout height matches the previous (no visible change — observed on
