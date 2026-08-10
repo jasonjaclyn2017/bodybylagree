@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.13';
+  var VERSION = '2026-08-09.14';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -735,7 +735,14 @@
   function findHeader() {
     var divs = document.querySelectorAll('div');
     for (var i = 0; i < divs.length; i++) {
+      // Skip Framer's own editor chrome. On *.framer.app staging the editor
+      // bar (#__framer-editorbar-container, z-index 2147483647) briefly
+      // renders full-width at the top and used to win this scan, leaving the
+      // real header unstyled — so the dark/light header never applied on
+      // staging even though it worked in production.
+      if ((divs[i].id || '').indexOf('__framer-') === 0) continue;
       var s = getComputedStyle(divs[i]);
+      if (parseInt(s.zIndex) > 1000) continue;
       if (s.position === 'fixed' && parseInt(s.zIndex) >= 10) {
         var rect = divs[i].getBoundingClientRect();
         if (rect.top <= 10 && rect.height < 200 && rect.width > window.innerWidth * 0.5) return divs[i];
