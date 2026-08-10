@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.7';
+  var VERSION = '2026-08-10.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -492,9 +492,10 @@
       return;
     }
     dbg('postMessage', { origin: e.origin, type: data && data.type, keys: data && typeof data === 'object' ? Object.keys(data) : null });
-    // Cover onbookee's loading state. Three triggers — overlap is intentional:
-    //   ShowOrigin     → fires on every onbookee mount (incl. their /pricing
-    //                    double-mount). Earliest signal on iframe-remount flows.
+    // Cover onbookee's document boots only (since 2026-08-10.8). Show trigger
+    // here is ShowOrigin — fires on every onbookee mount (incl. their
+    // /pricing double-mount), never on pure-SPA navs. SPA navs are fast and
+    // deliberately uncovered. Historical notes on the retired triggers:
     //   RouteChanged   → fires on every URL transition, including pure-SPA navs
     //                    where no remount happens. Slightly later than 331.
     //   height === 331 → onbookee's loading-skeleton height. Confirmed stable
@@ -507,22 +508,24 @@
     if (data && data.type === 'ShowOrigin') {
       showOverlay('show-origin');
     }
+    // NOTE 2026-08-10.8: RouteChanged and height===331 no longer trigger
+    // showOverlay. Those fire on SPA navs (intercept clicks, onbookee's own
+    // tab links), which are fast now that hashchange no longer forces a src
+    // reload — verified with bblOverlayAlpha(0): worst artifact is a
+    // sub-frame grey skeleton flash below onbookee's header. The overlay is
+    // now purely a document-boot mask: ShowOrigin (document mount),
+    // watchIframe-init (iframe added), and the sync-iframe reload fallback.
     if (data && data.type === 'RouteChanged') {
-      showOverlay('route-changed');
-      // showOverlay just cleared heightDebounce. If onbookee follows up with
-      // heights they'll reschedule it to 300ms. But when the new route's
-      // layout height matches the previous (no visible change — observed on
-      // /appointment/...?facility=&id= sub-routes), onbookee sends no height
-      // and the overlay would hang until the 10s failsafe. Schedule a 500ms
-      // backup hide; any incoming height resets it. Scoped to RouteChanged
-      // because other triggers (iframe-load, ShowOrigin, loading-height)
-      // are reliably followed by heights and would regress on slow boots.
-      if (!reloadInFlight) {
+      // Backup hide for boot-time overlays when the new route's layout
+      // height matches the previous (no visible change — observed on
+      // /appointment/...?facility=&id= sub-routes): onbookee sends no
+      // height and the overlay would hang until the failsafe. Any incoming
+      // height resets this. Skipped while a src reload is in flight (the
+      // outgoing document's RouteChanged must not hide the boot overlay).
+      if (!reloadInFlight && overlay.classList.contains('visible')) {
+        clearTimeout(heightDebounce);
         heightDebounce = setTimeout(function () { hideOverlay('route-no-height'); }, 500);
       }
-    }
-    if (data && data.type === 'ReceiveMyHeight' && data.message && data.message.height === 331) {
-      showOverlay('loading-height');
     }
     if (data && data.type === 'ReceiveMyHeight') {
       if (reloadInFlight) {
