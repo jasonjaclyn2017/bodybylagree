@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.5';
+  var VERSION = '2026-08-10.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -189,6 +189,13 @@
     if (isRecentlyEmittedRoute(location.hash)) return;
     var target = IFRAME_ORIGIN + location.hash.slice(1);
     dbg('sync iframe on hashchange', { target: target });
+    // The outgoing onbookee document stays alive for a beat after src is
+    // set and keeps sending ReceiveMyHeight — e.source === contentWindow
+    // matches both documents, so those stale heights would schedule a hide
+    // that fires before the new document boots, exposing onbookee's loader.
+    // reloadInFlight suppresses all hide scheduling until the new document
+    // announces itself (first ShowOrigin/RouteChanged after iframe load).
+    reloadInFlight = true;
     showOverlay('sync-iframe');
     iframe.src = target;
   });
@@ -320,6 +327,16 @@
   var heightDebounce = null;
   var overlayFailsafe = null;
 
+  // True while a hashchange-driven iframe.src reload is in flight. Set in
+  // the hashchange handler, cleared on the iframe's load event (the old
+  // document is gone by then, so later messages are the new document's).
+  // While set, hide *scheduling* is suppressed — the outgoing document's
+  // stale ReceiveMyHeight messages would otherwise hide the overlay in the
+  // gap before the new document's first ShowOrigin (~166ms observed).
+  // The OVERLAY_FAILSAFE_MS timer still hides directly and clears the flag,
+  // so a navigation that never fires load can't strand the overlay.
+  var reloadInFlight = false;
+
   // If the overlay is shown but the iframe goes completely silent, give
   // up after this long and hide it anyway so the user isn't stranded.
   // Dropped to 4s — most observed slow paths are now handled by the
@@ -355,6 +372,7 @@
 
   function hideOverlay(reason) {
     dbg('hideOverlay', reason);
+    reloadInFlight = false;
     clearTimeout(overlayFailsafe);
     var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
     if (iframe) iframe.style.visibility = 'visible';
@@ -406,6 +424,8 @@
       // be wrong — the content is ready, hiding it would blank the page.
       // postMessage handlers manage the overlay lifecycle.
       dbg('iframe load event', { src: iframe.src });
+      // Old document is gone — messages from here on are the new one's.
+      reloadInFlight = false;
     });
   }
 
@@ -472,15 +492,21 @@
       // backup hide; any incoming height resets it. Scoped to RouteChanged
       // because other triggers (iframe-load, ShowOrigin, loading-height)
       // are reliably followed by heights and would regress on slow boots.
-      heightDebounce = setTimeout(function () { hideOverlay('route-no-height'); }, 500);
+      if (!reloadInFlight) {
+        heightDebounce = setTimeout(function () { hideOverlay('route-no-height'); }, 500);
+      }
     }
     if (data && data.type === 'ReceiveMyHeight' && data.message && data.message.height === 331) {
       showOverlay('loading-height');
     }
     if (data && data.type === 'ReceiveMyHeight') {
-      dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
-      clearTimeout(heightDebounce);
-      heightDebounce = setTimeout(function () { hideOverlay('receivemyheight'); }, 300);
+      if (reloadInFlight) {
+        dbg('ReceiveMyHeight: ignored (reload in flight — stale old-document height)');
+      } else {
+        dbg('ReceiveMyHeight: scheduling hideOverlay in 300ms');
+        clearTimeout(heightDebounce);
+        heightDebounce = setTimeout(function () { hideOverlay('receivemyheight'); }, 300);
+      }
       // Push failsafe back — any height message is proof the iframe is alive.
       // Without this, a slow nav (RouteChanged then long pause before next
       // height) trips the failsafe and hides the overlay mid-load. Only
