@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.8';
+  var VERSION = '2026-08-10.9';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -461,6 +461,7 @@
   }
 
   new MutationObserver(function (mutations) {
+    var sawRemoval = false;
     for (var i = 0; i < mutations.length; i++) {
       for (var j = 0; j < mutations[i].addedNodes.length; j++) {
         var node = mutations[i].addedNodes[j];
@@ -472,6 +473,16 @@
           watchIframe(iframe);
         }
       }
+      if (mutations[i].removedNodes.length) sawRemoval = true;
+    }
+    // Tear down the intercept wrapper when the iframe leaves the page —
+    // bbl-nav fires before React unmounts the old page, so without this a
+    // fixed-position wrapper survives SPA navs away from embed pages and
+    // eats clicks on the destination (observed: /calendar's month arrows).
+    // buildIntercepts() self-tears-down when no iframe is present.
+    if (sawRemoval && interceptWrapper && !getStudioyouIframe()) {
+      dbg('MutationObserver: iframe gone — removing intercept wrapper');
+      buildIntercepts();
     }
   }).observe(document.body, { childList: true, subtree: true });
 
