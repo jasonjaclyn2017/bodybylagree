@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.12';
+  var VERSION = '2026-08-09.13';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -632,6 +632,12 @@
   var darkHeaderCSS = document.createElement('style');
   darkHeaderCSS.textContent =
     '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important}'
+    // At the very top of /calendar the header's 60%-black wash clipped the
+    // calendar band's radial gradient at a hard horizontal line. Going fully
+    // transparent there lets the gradient run under it; safe because that
+    // page is dark all the way up, so the white header text stays legible.
+    // Two classes deep so it outranks .bbl-dark-header's !important.
+    + '.bbl-dark-header.bbl-clear-header{background-color:transparent!important}'
     + '.bbl-dark-header p,.bbl-dark-header a{color:#fff!important}'
     // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
     // logo-container ancestor (renders the source-black logo as white over
@@ -759,11 +765,24 @@
   // which happens *before* Framer mounts the new route, so the probe answers
   // for the page we just left. (/calendar is intentionally absent: dark is
   // the default, so the calendar page gets the dark header for free.)
+  // /calendar additionally drops the header's background entirely while the
+  // page is scrolled to the top, so the calendar band's gradient reads as one
+  // continuous surface. Past the threshold the usual dark wash fades back in
+  // (the header sits over calendar cells there and needs the separation).
+  var CLEAR_HEADER_PATHS = ['/calendar'];
+  var CLEAR_HEADER_MAX_Y = 20;
+
   function initDarkHeader(header) {
     function updateHeader() {
       var dark = LIGHT_PATHS.indexOf(normalizedPath()) === -1;
       header.classList.toggle('bbl-dark-header', dark);
       header.classList.toggle('bbl-light-header', !dark);
+      header.classList.toggle(
+        'bbl-clear-header',
+        dark &&
+          CLEAR_HEADER_PATHS.indexOf(normalizedPath()) !== -1 &&
+          window.scrollY < CLEAR_HEADER_MAX_Y
+      );
     }
     window.addEventListener('scroll', updateHeader, { passive: true });
     window.addEventListener('popstate', updateHeader);
