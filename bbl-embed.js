@@ -737,8 +737,14 @@
   // SPA navs from /calendar land without a fresh script init — re-check the
   // query on every parent nav. The hint itself shows from hideOverlay().
   window.addEventListener('bbl-nav', consumeDateParam);
-  // Leave the page (or route within it) — drop any visible hint immediately.
+  // Leave the page — drop any visible hint immediately. Compare pathnames:
+  // bbl-nav also fires on every wrapper-driven HASH write (Bookee pushes its
+  // canonical route seconds after boot, right when the hint appears), and
+  // those must not kill it.
+  var dateHintPath = location.pathname;
   window.addEventListener('bbl-nav', function () {
+    if (location.pathname === dateHintPath) return;
+    dateHintPath = location.pathname;
     if (dateHintEl && dateHintEl.parentNode) dateHintEl.parentNode.removeChild(dateHintEl);
     dateHintEl = null;
   });
