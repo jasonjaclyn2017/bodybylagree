@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.9';
+  var VERSION = '2026-08-09.10';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -656,8 +656,8 @@
     // button), phones pin it nearly flush (~16px).
     var w = window.innerWidth;
     if (w >= 844) return { top: '94px', right: 'calc(50% - 560px + 48px)' };
-    if (w >= 720) return { top: '132px', right: '134px' };
-    return { top: '132px', right: '68px' };
+    if (w >= 720) return { top: '102px', right: '78px' };
+    return { top: '132px', right: '52px' };
   }
   function consumeDateParam() {
     // Hard navigations carry the date as ?bbl-date=... in the URL.
