@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.7';
+  var VERSION = '2026-08-09.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -649,11 +649,13 @@
     // Wide (>=844): Bookee's header is a centered 1120px bar; the calendar
     // button sits below its right edge (under Login/Signup). Anchor the
     // hint's right edge a bit left of that so the arrow spans the gap.
-    // Narrow: layout wraps; the button stays near the widget's top-right,
-    // so use a plain pixel offset from the iframe's right edge.
+    // Narrow: the layout wraps and the calendar button drops to the
+    // "This week" row (roughly one row lower than on wide), flush to the
+    // widget's right edge — sit the hint on that row, arrow tip rising
+    // slightly into the button.
     return window.innerWidth >= 844
       ? { top: '94px', right: 'calc(50% - 560px + 48px)' }
-      : { top: '84px', right: '64px' };
+      : { top: '132px', right: '68px' };
   }
   function consumeDateParam() {
     // Hard navigations carry the date as ?bbl-date=... in the URL.
