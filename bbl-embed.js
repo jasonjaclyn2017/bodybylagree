@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.1';
+  var VERSION = '2026-08-10.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -88,11 +88,12 @@
   // with 80px top margin in parent, body 24px L/R padding, header bar 1120px
   // centered, 59px tall, flush to iframe top (intercept top:0).
   // Left cluster (cumulative left offset from header left, w/ 24px gaps):
-  //   Classes               x=0   w=51
-  //   Sauna Booking         x=75  w=107
-  //   Certifications        x=206 w=93
-  //   BBL Society Essentials x=323 w=165
-  //   Membership            x=512 w=90
+  // (re-measured 2026-08-10 — onbookee's label widths drifted)
+  //   Classes               x=0   w=56
+  //   Sauna Booking         x=75  w=112
+  //   Certifications        x=206 w=98
+  //   BBL Society Essentials x=323 w=75
+  //   Membership            x=415 w=100
   // Right cluster (cumulative offset from header right, w/ 0 gap):
   //   Login/Signup          right=0   w=95
   //   Cart                  right=95  w=40  h=58
@@ -104,27 +105,27 @@
     classes: {
       onbookeePath: '/class-schedule/r/2094',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 560px)', width: '51px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 560px)', width: '56px', height: '59px' }
     },
     sauna: {
       onbookeePath: '/appointment/r/2094',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 485px)', width: '107px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 485px)', width: '112px', height: '59px' }
     },
     certifications: {
       onbookeePath: '/courses/r/2094',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 354px)', width: '93px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 354px)', width: '98px', height: '59px' }
     },
     essentials: {
       onbookeePath: '/products/r/2094',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 237px)', width: '155px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 237px)', width: '75px', height: '59px' }
     },
     membership: {
       onbookeePath: '/pricing/r/2094/loc/2344?group=0',
       minWidth: 844,
-      style: { top: '0', left: 'calc(50% - 59px)', width: '90px', height: '59px' }
+      style: { top: '0', left: 'calc(50% - 145px)', width: '100px', height: '59px' }
     }
     // Login and Cart intentionally omitted: onbookee collapses the
     // Login/Signup link (95px) to an icon (40px) when the user is logged
