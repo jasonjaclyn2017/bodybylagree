@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.3';
+  var VERSION = '2026-08-09.4';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -26,14 +26,13 @@
   // Feature-gated to the Navigation API (Chrome/Edge 102+, Safari 17.4+).
   // Browsers without it fall through to the existing hard-reload behavior;
   // the overlay's path-based fast-path keeps that experience tolerable.
-  // /calendar is deliberately NOT here. Its embed is lazy-mounted mid-page,
-  // and intercepting the navigate events that Bookee's hash writes produce
-  // gives the browser new-navigation scroll handling — i.e. it scrolls the
-  // page back to the top on every iframe route change. Full reloads into
-  // /calendar are cheap (static content), so it doesn't need SPA treatment.
-  // If /calendar ever replaces /schedule, remove '/schedule' from this list
-  // (and from the overlay fast-path below) at the same time.
-  var SPA_PATHS = ['/schedule', '/memberships', '/pricing'];
+  // /calendar used to be deliberately absent: its lazy-mounted embed's hash
+  // writes made SPA nav scroll the page to the top on every iframe route
+  // change. The embed moved to /schedule permanently (calendar is browse-only
+  // now), so that hazard is gone — and /calendar NEEDS SPA treatment: a full
+  // reload flashes the white document background before the near-black page
+  // paints, which reads as a white blink when navigating in from the header.
+  var SPA_PATHS = ['/schedule', '/memberships', '/pricing', '/calendar'];
 
   // Sync the iframe to the destination of a same-page navigation. The wrapper
   // only propagates iframe → parent hash; parent hash changes never make it
@@ -52,7 +51,6 @@
   // when the user clicks a header link while already at default state.
   var PAGE_DEFAULTS = {
     '/schedule':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
-    '/calendar':    { iframePath: '/class-schedule',                  canonicalHash: '#/class-schedule/r/2094' },
     '/memberships': { iframePath: '/pricing/r/2094/loc/2344?group=0', canonicalHash: '#/pricing/r/2094/loc/2344?group=0' }
   };
   // Updated by the postMessage handler below on every iframe RouteChanged.
