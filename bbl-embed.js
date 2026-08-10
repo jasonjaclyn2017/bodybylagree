@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.6';
+  var VERSION = '2026-08-09.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -652,18 +652,36 @@
     // Narrow: layout wraps; the button stays near the widget's top-right,
     // so use a plain pixel offset from the iframe's right edge.
     return window.innerWidth >= 844
-      ? { top: '78px', right: 'calc(50% - 560px + 48px)' }
-      : { top: '70px', right: '64px' };
+      ? { top: '94px', right: 'calc(50% - 560px + 48px)' }
+      : { top: '84px', right: '64px' };
   }
   function consumeDateParam() {
+    // Hard navigations carry the date as ?bbl-date=... in the URL.
     var m = /[?&]bbl-date=(\d{4}-\d{2}-\d{2})/.exec(location.search);
-    if (!m) return;
-    dateHintPending = m[1];
-    dbg('date hint pending', { date: dateHintPending });
+    if (m) {
+      dateHintPending = m[1];
+      dbg('date hint pending (query)', { date: dateHintPending });
+      try {
+        var u = new URL(location.href);
+        u.searchParams.delete('bbl-date');
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      } catch (_) {}
+      // The calendar sets sessionStorage too (belt and braces) — clear it so
+      // it can't resurface as a stale hint on a later visit.
+      try { sessionStorage.removeItem('bbl-date-hint'); } catch (_) {}
+      return;
+    }
+    // SPA navigations can't carry a query string — Framer's router drops it —
+    // so the calendar page stores the date in sessionStorage instead. Only
+    // consume it when we actually land on the booking page.
+    if (location.pathname.indexOf('/schedule') !== 0) return;
     try {
-      var u = new URL(location.href);
-      u.searchParams.delete('bbl-date');
-      history.replaceState(null, '', u.pathname + u.search + u.hash);
+      var s = sessionStorage.getItem('bbl-date-hint');
+      if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        sessionStorage.removeItem('bbl-date-hint');
+        dateHintPending = s;
+        dbg('date hint pending (storage)', { date: dateHintPending });
+      }
     } catch (_) {}
   }
   function setupDateHintStyles() {
