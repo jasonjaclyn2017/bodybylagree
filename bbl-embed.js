@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-09.2';
+  var VERSION = '2026-08-09.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -381,6 +381,9 @@
     requestAnimationFrame(function () {
       overlay.classList.remove('visible');
     });
+    // The widget is now visible — if the calendar page handed us a date,
+    // point the user at Bookee's date-picker button.
+    maybeShowDateHint();
   }
 
   // Re-parent the overlay depending on where the iframe lives. Inside a
@@ -604,6 +607,9 @@
       interceptWrapper.appendChild(a);
       interceptEls[name] = a;
     });
+    // The wrapper teardown above also removed an active date hint — put it
+    // back so a resize/nav rebuild doesn't silently kill it mid-display.
+    if (dateHintEl && interceptWrapper) interceptWrapper.appendChild(dateHintEl);
     repositionInterceptWrapper();
   }
 
@@ -637,6 +643,135 @@
       summary[name] = { href: el.getAttribute('href'), top: el.style.top, bottom: el.style.bottom, left: el.style.left, right: el.style.right, width: el.style.width, height: el.style.height };
     });
     console.table(summary);
+  };
+
+  // --- "Select date here" hint (?bbl-date handoff from /calendar) ---
+  // The calendar page can't pre-select a date inside Bookee's cross-origin
+  // iframe, so when the user picked a non-today date there it sends them
+  // here with ?bbl-date=YYYY-MM-DD. We consume the param (strip it from the
+  // URL so refresh/back doesn't replay it) and, once the loading overlay
+  // hides (widget visibly ready), draw a hand-note hint pointing at Bookee's
+  // calendar button — top-right of the widget, just below Login/Signup.
+  // Letters fade in one at a time, then the arrow draws itself.
+  //
+  // The hint lives inside #bbl-intercept-wrapper (fixed, mirrors the iframe
+  // rect, repositioned on scroll), so its offsets are relative to the iframe
+  // — same coordinate system as NAV_INTERCEPTS. It is pointer-events:none
+  // and fades away on its own; clicking the calendar button goes straight
+  // through it to Bookee.
+  //
+  // Debug: bblDateHint() force-shows it; bblDateHintPos({top:'x',right:'y'})
+  // live-tweaks position. Copy final values back into DATE_HINT_POS.
+  var dateHintPending = null;
+  var dateHintEl = null;
+  var DATE_HINT_TEXT = 'Select date here';
+  var DATE_HINT_HIDE_MS = 9000;
+  function dateHintPos() {
+    // Wide (>=844): Bookee's header is a centered 1120px bar; the calendar
+    // button sits below its right edge (under Login/Signup). Anchor the
+    // hint's right edge a bit left of that so the arrow spans the gap.
+    // Narrow: layout wraps; the button stays near the widget's top-right,
+    // so use a plain pixel offset from the iframe's right edge.
+    return window.innerWidth >= 844
+      ? { top: '78px', right: 'calc(50% - 560px + 48px)' }
+      : { top: '70px', right: '64px' };
+  }
+  function consumeDateParam() {
+    var m = /[?&]bbl-date=(\d{4}-\d{2}-\d{2})/.exec(location.search);
+    if (!m) return;
+    dateHintPending = m[1];
+    dbg('date hint pending', { date: dateHintPending });
+    try {
+      var u = new URL(location.href);
+      u.searchParams.delete('bbl-date');
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+    } catch (_) {}
+  }
+  function setupDateHintStyles() {
+    if (document.getElementById('bbl-date-hint-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'bbl-date-hint-styles';
+    s.textContent =
+      '#bbl-date-hint{position:absolute;display:flex;align-items:center;gap:10px;pointer-events:none;z-index:10;opacity:1;transition:opacity .6s ease}'
+      + '#bbl-date-hint.bbl-dh-out{opacity:0}'
+      + '#bbl-date-hint .bbl-dh-text{font:italic 600 19px Georgia,serif;color:#1a1a1a;letter-spacing:.01em;white-space:nowrap}'
+      + '#bbl-date-hint .bbl-dh-text span{opacity:0;animation:bblDhIn .3s ease forwards}'
+      + '@keyframes bblDhIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'
+      + '#bbl-date-hint svg{overflow:visible;flex:none}'
+      + '#bbl-date-hint svg path{stroke:#1a1a1a;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:130;stroke-dashoffset:130;animation:bblDhDraw .55s ease-out forwards}'
+      + '@keyframes bblDhDraw{to{stroke-dashoffset:0}}';
+    document.head.appendChild(s);
+  }
+  function buildDateHint() {
+    setupDateHintStyles();
+    var el = document.createElement('div');
+    el.id = 'bbl-date-hint';
+    var pos = dateHintPos();
+    Object.keys(pos).forEach(function (p) { el.style[p] = pos[p]; });
+    var text = document.createElement('span');
+    text.className = 'bbl-dh-text';
+    var chars = DATE_HINT_TEXT.split('');
+    for (var i = 0; i < chars.length; i++) {
+      var span = document.createElement('span');
+      span.textContent = chars[i] === ' ' ? ' ' : chars[i];
+      span.style.animationDelay = (200 + i * 45) + 'ms';
+      text.appendChild(span);
+    }
+    el.appendChild(text);
+    // Hand-drawn arrow: a lazy upward-right curve plus a hook head, drawn
+    // via stroke-dashoffset once the last letter has landed.
+    var arrowDelay = 200 + chars.length * 45 + 150;
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '64');
+    svg.setAttribute('height', '36');
+    svg.setAttribute('viewBox', '0 0 64 36');
+    var p1 = document.createElementNS(svgNS, 'path');
+    p1.setAttribute('d', 'M2,30 C18,33 40,27 58,9');
+    p1.style.animationDelay = arrowDelay + 'ms';
+    var p2 = document.createElementNS(svgNS, 'path');
+    p2.setAttribute('d', 'M46,7 L58,9 L53,20');
+    p2.style.animationDelay = (arrowDelay + 350) + 'ms';
+    svg.appendChild(p1);
+    svg.appendChild(p2);
+    el.appendChild(svg);
+    return el;
+  }
+  function maybeShowDateHint() {
+    if (!dateHintPending || dateHintEl) return;
+    var iframe = getStudioyouIframe();
+    if (!iframe || !interceptWrapper) return;
+    dbg('showing date hint', { date: dateHintPending });
+    dateHintPending = null;
+    dateHintEl = buildDateHint();
+    interceptWrapper.appendChild(dateHintEl);
+    setTimeout(function () {
+      if (!dateHintEl) return;
+      dateHintEl.classList.add('bbl-dh-out');
+      setTimeout(function () {
+        if (dateHintEl && dateHintEl.parentNode) dateHintEl.parentNode.removeChild(dateHintEl);
+        dateHintEl = null;
+      }, 700);
+    }, DATE_HINT_HIDE_MS);
+  }
+  consumeDateParam();
+  // SPA navs from /calendar land without a fresh script init — re-check the
+  // query on every parent nav. The hint itself shows from hideOverlay().
+  window.addEventListener('bbl-nav', consumeDateParam);
+  // Leave the page (or route within it) — drop any visible hint immediately.
+  window.addEventListener('bbl-nav', function () {
+    if (dateHintEl && dateHintEl.parentNode) dateHintEl.parentNode.removeChild(dateHintEl);
+    dateHintEl = null;
+  });
+  // Debug helpers
+  window.bblDateHint = function () {
+    dateHintPending = '2099-01-01';
+    maybeShowDateHint();
+  };
+  window.bblDateHintPos = function (styles) {
+    if (!dateHintEl) return console.log('[bbl-embed] no date hint visible — run bblDateHint() first');
+    Object.keys(styles).forEach(function (p) { dateHintEl.style[p] = styles[p]; });
+    console.log('[bbl-embed] date hint →', styles);
   };
 
   // --- Dark header on home page at scroll top ---
