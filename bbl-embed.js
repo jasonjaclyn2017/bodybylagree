@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-10.10';
+  var VERSION = '2026-08-11.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -14,6 +14,91 @@
     else console.log('[bbl +' + Math.round(performance.now() - __t0) + 'ms]', label, info);
   }
   dbg('script init', { pathname: location.pathname, hash: location.hash, readyState: document.readyState });
+
+  // --- UTM harvesting (added 2026-08-11) ---
+  // Captures utm_* / fbclid from ad and boosted-post links, persists the
+  // attribution for 30 days, and beacons two event types to the bbl-utm
+  // Cloudflare Worker (D1-backed):
+  //   landing       → once per landing that carries utm_* or fbclid
+  //   booking_route → every Kenko iframe route an *attributed* visitor
+  //                   reaches (deduped per route per session). Lets us see
+  //                   how deep into the booking funnel each campaign gets;
+  //                   once we learn Kenko's confirmation route name, the
+  //                   report can call those conversions.
+  // Report: https://bbl-utm.jasonjaclyn2017.workers.dev/report?token=...
+  // Fails silently on storage/network errors — must never break the site.
+  (function utmHarvest() {
+    var ENDPOINT = 'https://bbl-utm.jasonjaclyn2017.workers.dev/hit';
+    var ATTR_TTL_MS = 30 * 864e5;
+    function store(area, key, val) { try { if (val === undefined) return area.getItem(key); area.setItem(key, val); } catch (_) { return null; } }
+    function randId() {
+      try { var a = new Uint32Array(2); crypto.getRandomValues(a); return a[0].toString(36) + a[1].toString(36); }
+      catch (_) { return String(Date.now() % 1e9); }
+    }
+    var visitor = store(localStorage, 'bblVisitor');
+    if (!visitor) { visitor = randId(); store(localStorage, 'bblVisitor', visitor); }
+    var session = store(sessionStorage, 'bblSession');
+    if (!session) { session = randId(); store(sessionStorage, 'bblSession', session); }
+
+    var qs = new URLSearchParams(location.search);
+    var incoming = null;
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(function (k) {
+      var v = qs.get(k);
+      if (v) { incoming = incoming || {}; incoming[k] = v; }
+    });
+    var fbclid = !!qs.get('fbclid');
+    // fbclid with no utm_* still means "arrived from a Meta ad/boost click"
+    if (!incoming && fbclid) incoming = { utm_source: 'facebook', utm_medium: 'fbclid' };
+
+    var attr = null;
+    try { attr = JSON.parse(store(localStorage, 'bblUTM') || 'null'); } catch (_) {}
+    if (attr && (!attr.ts || Date.now() - attr.ts > ATTR_TTL_MS)) attr = null;
+    if (incoming) {
+      attr = { params: incoming, fbclid: fbclid, ts: Date.now(), landing: location.pathname };
+      store(localStorage, 'bblUTM', JSON.stringify(attr));
+    }
+    window.bblUTM = attr;
+
+    function send(payload) {
+      try {
+        payload.visitor = visitor;
+        payload.session = session;
+        if (attr) {
+          var p = attr.params || {};
+          payload.utm_source = p.utm_source; payload.utm_medium = p.utm_medium;
+          payload.utm_campaign = p.utm_campaign; payload.utm_content = p.utm_content;
+          payload.utm_term = p.utm_term; payload.fbclid = attr.fbclid;
+        }
+        var body = JSON.stringify(payload);
+        dbg('utm send', payload);
+        if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'application/json' }))) return;
+        fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
+      } catch (_) {}
+    }
+
+    if (incoming) send({ event: 'landing', page: location.pathname, referrer: document.referrer });
+
+    // Funnel tracking: watch the Kenko booking iframe's RouteChanged
+    // messages (own listener — independent of the overlay handler below).
+    // Attributed visitors only, one beacon per route per session.
+    if (attr) {
+      window.addEventListener('message', function (e) {
+        try {
+          var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
+          if (!iframe || e.source !== iframe.contentWindow) return;
+          var data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
+          if (!data || data.type !== 'RouteChanged' || !data.message || typeof data.message.path !== 'string') return;
+          var route = data.message.path.split('?')[0];
+          var seenKey = 'bblUTMRoutes';
+          var seen = (store(sessionStorage, seenKey) || '').split('|');
+          if (seen.indexOf(route) !== -1) return;
+          seen.push(route);
+          store(sessionStorage, seenKey, seen.join('|'));
+          send({ event: 'booking_route', page: location.pathname, route: route });
+        } catch (_) {}
+      });
+    }
+  })();
 
   // The header is dark on every page EXCEPT the two light-background pages.
   // Defined up here because the pre-paint background below needs it too.
