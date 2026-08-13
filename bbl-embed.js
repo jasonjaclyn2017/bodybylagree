@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-11.1';
+  var VERSION = '2026-08-12.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -104,6 +104,8 @@
   // Defined up here because the pre-paint background below needs it too.
   // Trade-off: rename Schedule/Memberships and their header silently goes dark.
   var LIGHT_PATHS = ['/schedule', '/memberships'];
+  // Ad landing pages that hide the site nav entirely (no exits above the fold).
+  var HIDE_HEADER_PATHS = ['/intro'];
   function normalizedPath() {
     var p = location.pathname.replace(/\/+$/, '');
     return p === '' ? '/' : p;
@@ -126,6 +128,8 @@
   function updateDocBg() {
     document.documentElement.style.backgroundColor =
       LIGHT_PATHS.indexOf(normalizedPath()) === -1 ? '#0D0C0B' : 'rgb(210,205,194)';
+    document.documentElement.classList.toggle(
+      'bbl-hide-header', HIDE_HEADER_PATHS.indexOf(normalizedPath()) !== -1);
   }
   updateDocBg();
   window.addEventListener('bbl-nav', updateDocBg);
@@ -800,7 +804,8 @@
   // .bbl-light-header that mirrors the desktop cream/black defaults.
   var darkHeaderCSS = document.createElement('style');
   darkHeaderCSS.textContent =
-    '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important}'
+    'html.bbl-hide-header .bbl-dark-header,html.bbl-hide-header .bbl-light-header{display:none!important}'
+    +     '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important}'
     // At the very top of /calendar the header's 60%-black wash clipped the
     // calendar band's radial gradient at a hard horizontal line. Going fully
     // transparent there lets the gradient run under it; safe because that
