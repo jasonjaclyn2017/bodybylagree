@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-12.1';
+  var VERSION = '2026-08-15.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -14,6 +14,20 @@
     else console.log('[bbl +' + Math.round(performance.now() - __t0) + 'ms]', label, info);
   }
   dbg('script init', { pathname: location.pathname, hash: location.hash, readyState: document.readyState });
+
+  // --- Microsoft Clarity (added 2026-08-15) ---
+  // Heatmaps / scroll maps / session recordings, site-wide. Official async
+  // loader; fails silently and must never break the site. GA4 is loaded by
+  // Framer directly (site settings), not here.
+  (function clarityInit() {
+    try {
+      (function (c, l, a, r, i, t, y) {
+        c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+        t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+        y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+      })(window, document, 'clarity', 'script', 'y2wdq6ov9p');
+    } catch (_) {}
+  })();
 
   // --- UTM harvesting (added 2026-08-11) ---
   // Captures utm_* / fbclid from ad and boosted-post links, persists the
