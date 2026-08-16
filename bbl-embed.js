@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-15.2';
+  var VERSION = '2026-08-16.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -66,6 +66,7 @@
         var s = el.querySelector('span');
         ev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
       }
+      else if (t.closest('a.iv-hero-get')) ev('intro_hero_cta', { cta: 'get_started' });
       else if ((el = t.closest('a.iv-btn-bar'))) ev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
     }, true);
 
