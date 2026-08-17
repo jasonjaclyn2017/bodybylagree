@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-16.1';
+  var VERSION = '2026-08-17.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -52,22 +52,31 @@
       }
     }, true);
 
-    if (location.pathname.replace(/\/$/, '') !== '/intro') return;
+    // /intro and /intro-2 share the .iv-* markup; the variant is stamped on
+    // every event as `page` so GA can compare the two landing pages directly.
+    var introPath = location.pathname.replace(/\/$/, '');
+    if (introPath !== '/intro' && introPath !== '/intro-2') return;
+    function iev(name, params) {
+      params = params || {};
+      params.page = introPath;
+      ev(name, params);
+    }
 
     // /intro element events — delegated on document so they survive React
     // re-renders (never touch the iv-rev className, see BBLIntro notes).
     document.addEventListener('click', function (e) {
       var t = e.target; if (!t || !t.closest) return;
       var el;
-      if (t.closest('.iv-play')) ev('intro_video_play', { video: 'hero' });
-      else if (t.closest('.iv-car')) ev('intro_video_play', { video: 'megaformer' });
+      if (t.closest('.iv-play')) iev('intro_video_play', { video: 'hero' });
+      else if (t.closest('.iv-car')) iev('intro_video_play', { video: 'megaformer' });
       else if ((el = t.closest('.iv-q-btn'))) {
         // fires on every toggle (open and close); GA-side, read unique users
         var s = el.querySelector('span');
-        ev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
+        iev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
       }
-      else if (t.closest('a.iv-hero-get')) ev('intro_hero_cta', { cta: 'get_started' });
-      else if ((el = t.closest('a.iv-btn-bar'))) ev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
+      else if (t.closest('a.iv-hero-get')) iev('intro_hero_cta', { cta: 'get_started' });
+      else if (t.closest('a.iv-hero-alt')) iev('intro_hero_cta', { cta: 'free_first_look' });
+      else if ((el = t.closest('a.iv-btn-bar'))) iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
     }, true);
 
     // intro_section_view — once per section per pageview, at 30% visibility.
@@ -78,7 +87,7 @@
         entries.forEach(function (en) {
           if (en.isIntersecting && !seen[en.target.id]) {
             seen[en.target.id] = 1;
-            ev('intro_section_view', { section: en.target.id.replace('iv-', '') });
+            iev('intro_section_view', { section: en.target.id.replace('iv-', '') });
           }
         });
       }, { threshold: 0.3 });
@@ -185,7 +194,7 @@
   // Trade-off: rename Schedule/Memberships and their header silently goes dark.
   var LIGHT_PATHS = ['/schedule', '/memberships'];
   // Ad landing pages that hide the site nav entirely (no exits above the fold).
-  var HIDE_HEADER_PATHS = ['/intro'];
+  var HIDE_HEADER_PATHS = ['/intro', '/intro-2'];
   function normalizedPath() {
     var p = location.pathname.replace(/\/+$/, '');
     return p === '' ? '/' : p;
