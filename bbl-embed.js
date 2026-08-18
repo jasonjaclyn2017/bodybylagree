@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-17.1';
+  var VERSION = '2026-08-17.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -894,6 +894,10 @@
   var darkHeaderCSS = document.createElement('style');
   darkHeaderCSS.textContent =
     'html.bbl-hide-header .bbl-dark-header,html.bbl-hide-header .bbl-light-header{display:none!important}'
+    // Kenko's chat widget (fixed iframe, z-index 2^31-1, injected on body)
+    // pops an auto-message that covers the ad pages' sticky CTA bar on
+    // mobile. Ad landing pages exist to convert, not to chat — hide it there.
+    + 'html.bbl-hide-header iframe[src*="widget.gokenko.com"]{display:none!important}'
     +     '.bbl-dark-header{background-color:rgba(0,0,0,0.6)!important}'
     // At the very top of /calendar the header's 60%-black wash clipped the
     // calendar band's radial gradient at a hard horizontal line. Going fully
