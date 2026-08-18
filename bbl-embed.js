@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-17.2';
+  var VERSION = '2026-08-17.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -52,10 +52,13 @@
       }
     }, true);
 
-    // /intro and /intro-2 share the .iv-* markup; the variant is stamped on
-    // every event as `page` so GA can compare the two landing pages directly.
+    // Every ad landing page shares the .iv-* markup, and they get renamed as
+    // campaigns rotate (/intro-2 became /intro; the old one became
+    // /intro-old-1). So match the whole /intro* family by prefix rather than
+    // naming each slug — a rename must never silently stop telemetry. The
+    // exact slug is stamped on every event as `page`.
     var introPath = location.pathname.replace(/\/$/, '');
-    if (introPath !== '/intro' && introPath !== '/intro-2') return;
+    if (!isIntroPath(introPath)) return;
     function iev(name, params) {
       params = params || {};
       params.page = introPath;
@@ -193,8 +196,15 @@
   // Defined up here because the pre-paint background below needs it too.
   // Trade-off: rename Schedule/Memberships and their header silently goes dark.
   var LIGHT_PATHS = ['/schedule', '/memberships'];
-  // Ad landing pages that hide the site nav entirely (no exits above the fold).
-  var HIDE_HEADER_PATHS = ['/intro', '/intro-2'];
+  // Ad landing pages hide the site nav entirely (no exits above the fold).
+  // Prefix match, not a list: these slugs get renamed between campaigns.
+  // Declared as a function (not a var) so it is hoisted with its body and can
+  // be called from the analytics IIFE above, which runs before this point.
+  // Deliberately not a bare /^\/intro/ test — that would also catch a future
+  // /introduction-to-lagree content page.
+  function isIntroPath(p) {
+    return p === '/intro' || p.indexOf('/intro-') === 0;
+  }
   function normalizedPath() {
     var p = location.pathname.replace(/\/+$/, '');
     return p === '' ? '/' : p;
@@ -218,7 +228,7 @@
     document.documentElement.style.backgroundColor =
       LIGHT_PATHS.indexOf(normalizedPath()) === -1 ? '#0D0C0B' : 'rgb(210,205,194)';
     document.documentElement.classList.toggle(
-      'bbl-hide-header', HIDE_HEADER_PATHS.indexOf(normalizedPath()) !== -1);
+      'bbl-hide-header', isIntroPath(normalizedPath()));
   }
   updateDocBg();
   window.addEventListener('bbl-nav', updateDocBg);
