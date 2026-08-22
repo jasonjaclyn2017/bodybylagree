@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-17.3';
+  var VERSION = '2026-08-22.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -424,6 +424,63 @@
     };
     dbg('hashchange: waiting for wrapper to sync', { hash: hash });
   });
+
+  // --- History hygiene for the wrapper's hash mirror (2026-08-22.1) ---
+  // Kenko's wrapper (onbookee /embed/index.js) mirrors every iframe
+  // RouteChanged into the parent URL with `window.location.hash = path`
+  // — a native fragment navigation, so every mirrored route PUSHES a
+  // history entry. Two user-visible consequences (both reproduced):
+  //   1. Back from the booking page lands on /schedule with NO hash. The
+  //      wrapper's own hashchange listener answers that by ChangePath-ing
+  //      the iframe to its default route, which re-emits RouteChanged
+  //      (twice: /class-schedule, then /class-schedule/r/2094), which
+  //      pushes two fresh entries. Net +1 per Back press: the user can
+  //      never leave the page with the Back button.
+  //   2. Deep links (/schedule#/class-detail/{id}/r/2094 from the calendar)
+  //      collect an echo entry per route the iframe reports, so backing
+  //      out to /calendar takes several presses.
+  // Fix: catch the wrapper's 'message' listener at registration (its
+  // bound method, name "bound receiveMessage") and wrap it. On a
+  // RouteChanged from the booking iframe we history.replaceState the
+  // parent hash to the reported path BEFORE the wrapper runs. Its deferred
+  // `location.hash = path` then assigns a fragment identical to the
+  // current one, which the HTML spec makes a no-op (no entry, no
+  // hashchange — verified in Chrome). The URL still mirrors the iframe
+  // route, so refresh/share/our bridge all keep working; the mirror just
+  // stops writing history. The wrapper's remaining RouteChanged behaviour
+  // (scrollIntoView, its hashchange-listener dance) runs untouched. The
+  // iframe's own in-document history, if it keeps any, is not affected.
+  // Degrades gracefully: if the wrapper ever renames the method, nothing
+  // is wrapped and behaviour is simply what it was before this patch.
+  var _winAddEventListener = window.addEventListener;
+  window.addEventListener = function (type, fn, opts) {
+    if (type === 'message' && typeof fn === 'function'
+        && fn.name === 'bound receiveMessage' && !fn.__bblWrapped) {
+      var orig = fn;
+      fn = function (e) {
+        var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
+        if (iframe && e.source === iframe.contentWindow) {
+          var d = null;
+          try { d = typeof e.data === 'object' ? e.data : JSON.parse(e.data); } catch (_) {}
+          if (d && d.type === 'RouteChanged' && d.message && typeof d.message.path === 'string') {
+            var target = '#' + d.message.path;
+            if (location.hash !== target) {
+              try {
+                history.replaceState(history.state, '', location.pathname + location.search + target);
+                dbg('route mirrored via replaceState', { hash: target });
+              } catch (err) {
+                dbg('route mirror replaceState failed', { err: String(err) });
+              }
+            }
+          }
+        }
+        return orig.apply(this, arguments);
+      };
+      fn.__bblWrapped = true;
+      dbg('wrapped onbookee receiveMessage (history hygiene)');
+    }
+    return _winAddEventListener.call(this, type, fn, opts);
+  };
 
   // Guard against double initialization
   var oldOverlay = document.getElementById('bbl-overlay');
