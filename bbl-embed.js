@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-22.1';
+  var VERSION = '2026-08-25.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -67,19 +67,21 @@
 
     // /intro element events — delegated on document so they survive React
     // re-renders (never touch the iv-rev className, see BBLIntro notes).
+    // The i3-* selectors are BBLIntro3 (Concept 5, 2026-08-25): same event
+    // names so the GA4 funnel stays continuous across page versions.
     document.addEventListener('click', function (e) {
       var t = e.target; if (!t || !t.closest) return;
       var el;
       if (t.closest('.iv-play')) iev('intro_video_play', { video: 'hero' });
       else if (t.closest('.iv-car')) iev('intro_video_play', { video: 'megaformer' });
-      else if ((el = t.closest('.iv-q-btn'))) {
+      else if ((el = t.closest('.iv-q-btn, .i3-q-btn'))) {
         // fires on every toggle (open and close); GA-side, read unique users
         var s = el.querySelector('span');
         iev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
       }
-      else if (t.closest('a.iv-hero-get')) iev('intro_hero_cta', { cta: 'get_started' });
-      else if (t.closest('a.iv-hero-alt')) iev('intro_hero_cta', { cta: 'free_first_look' });
-      else if ((el = t.closest('a.iv-btn-bar'))) iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
+      else if (t.closest('a.iv-hero-get, a.i3-btn-hero')) iev('intro_hero_cta', { cta: 'get_started' });
+      else if (t.closest('a.iv-hero-alt, a.i3-offer-ghost')) iev('intro_hero_cta', { cta: 'free_first_look' });
+      else if ((el = t.closest('a.iv-btn-bar, a.i3-btn-bar'))) iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
     }, true);
 
     // intro_section_view — once per section per pageview, at 30% visibility.
@@ -90,11 +92,11 @@
         entries.forEach(function (en) {
           if (en.isIntersecting && !seen[en.target.id]) {
             seen[en.target.id] = 1;
-            iev('intro_section_view', { section: en.target.id.replace('iv-', '') });
+            iev('intro_section_view', { section: en.target.id.replace(/^i[v3]-/, '') });
           }
         });
       }, { threshold: 0.3 });
-      ['iv-what', 'iv-offers', 'iv-look'].forEach(function (id) {
+      ['iv-what', 'iv-offers', 'iv-look', 'i3-slow', 'i3-coach', 'i3-start', 'i3-look'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) io.observe(el);
       });
@@ -102,7 +104,7 @@
     // Component mounts after Framer hydration — poll briefly for the sections
     var tries = 0;
     (function arm() {
-      if (document.getElementById('iv-offers')) return watchSections();
+      if (document.getElementById('iv-offers') || document.getElementById('i3-start')) return watchSections();
       if (++tries < 60) setTimeout(arm, 500);
     })();
   })();
