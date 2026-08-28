@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-25.1';
+  var VERSION = '2026-08-28.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -29,6 +29,33 @@
     } catch (_) {}
   })();
 
+  // --- Meta Pixel (added 2026-08-28) ---
+  // Base pixel site-wide + conversion events, so Meta campaigns can optimize
+  // for real outcomes and build retargeting audiences. Official async loader;
+  // fails silently and must never break the site. Events fired elsewhere via
+  // window.bblFbq (queued by the fbq stub even before fbevents.js loads):
+  //   InitiateCheckout → buy_click links + Kenko iframe reaching /pricing/buy/
+  //   CompleteRegistration → Kenko iframe reaching /create-account
+  //   Lead → Kenko iframe reaching /thank-you/* (booking completed)
+  (function metaPixelInit() {
+    try {
+      !function (f, b, e, v, n, t, s) {
+        if (f.fbq) return; n = f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+        n.queue = []; t = b.createElement(e); t.async = !0;
+        t.src = v; s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1468307528661515');
+      fbq('track', 'PageView');
+    } catch (_) {}
+  })();
+  function bblFbq(name, params) {
+    try { window.fbq && window.fbq('track', name, params || {}); dbg('fbq', [name, params]); } catch (_) {}
+  }
+
   // --- GA4 custom events (added 2026-08-15) ---
   // gtag.js itself is loaded by Framer (site settings, G-T486J7W5WJ); we only
   // fire events. If gtag isn't up yet, arguments-objects pushed to dataLayer
@@ -48,7 +75,9 @@
       var a = e.target && e.target.closest && e.target.closest('a[href]');
       if (a && a.href.indexOf('/pricing/buy/') !== -1) {
         var m = a.href.match(/[?&]id=(\d+)/);
-        ev('buy_click', { plan: (m && (PLANS[m[1]] || m[1])) || 'unknown', page: location.pathname });
+        var plan = (m && (PLANS[m[1]] || m[1])) || 'unknown';
+        ev('buy_click', { plan: plan, page: location.pathname });
+        bblFbq('InitiateCheckout', { content_name: plan });
       }
     }, true);
 
@@ -192,6 +221,31 @@
         } catch (_) {}
       });
     }
+
+    // Meta Pixel funnel events — own listener, ALL visitors (not just
+    // attributed ones; Meta matches via its own cookies). One event per
+    // funnel stage per session. Caveat: pages that boot the Kenko iframe
+    // straight into a buy route emit InitiateCheckout on page view.
+    window.addEventListener('message', function (e) {
+      try {
+        var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
+        if (!iframe || e.source !== iframe.contentWindow) return;
+        var data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
+        if (!data || data.type !== 'RouteChanged' || !data.message || typeof data.message.path !== 'string') return;
+        var route = data.message.path.split('?')[0];
+        var stage = null;
+        if (route.indexOf('/pricing/buy/') === 0) stage = 'InitiateCheckout';
+        else if (route === '/create-account') stage = 'CompleteRegistration';
+        else if (route.indexOf('/thank-you') === 0) stage = 'Lead';
+        if (!stage) return;
+        var seenKey = 'bblFbqStages';
+        var seen = (store(sessionStorage, seenKey) || '').split('|');
+        if (seen.indexOf(stage) !== -1) return;
+        seen.push(stage);
+        store(sessionStorage, seenKey, seen.join('|'));
+        bblFbq(stage, { content_name: route });
+      } catch (_) {}
+    });
   })();
 
   // The header is dark on every page EXCEPT the two light-background pages.
