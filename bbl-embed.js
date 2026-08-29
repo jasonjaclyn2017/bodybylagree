@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-28.2';
+  var VERSION = '2026-08-29.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -34,6 +34,9 @@
   // for real outcomes and build retargeting audiences. Official async loader;
   // fails silently and must never break the site. Events fired elsewhere via
   // window.bblFbq (queued by the fbq stub even before fbevents.js loads):
+  //   ViewContent → /intro* pages: engaged past the hero (first section view
+  //     OR hero/bar CTA click, whichever first, once per pageview) — the
+  //     micro-conversion ad sets optimize on until Lead volume supports more
   //   InitiateCheckout → buy_click links + Kenko iframe reaching /pricing/buy/
   //   CompleteRegistration → Kenko iframe reaching /create-account
   //   Lead → Kenko iframe reaching /thank-you/* (booking completed)
@@ -94,6 +97,18 @@
       ev(name, params);
     }
 
+    // ViewContent = "engaged past the hero", fired once per pageview on the
+    // FIRST of: any section entering view, or a hero/bar CTA click. CTA
+    // clicks must count explicitly — fastScrollTo's 150ms animation can skip
+    // the section observer between frames on slow phones (the IG in-app
+    // browser especially), and CTA clickers are the highest-intent visitors.
+    var heroPassed = false;
+    function heroEngaged(via) {
+      if (heroPassed) return;
+      heroPassed = true;
+      bblFbq('ViewContent', { content_name: 'intro_past_hero', content_category: via, page: introPath });
+    }
+
     // /intro element events — delegated on document so they survive React
     // re-renders (never touch the iv-rev className, see BBLIntro notes).
     // The i3-* selectors are BBLIntro3 (Concept 5, 2026-08-25): same event
@@ -108,9 +123,9 @@
         var s = el.querySelector('span');
         iev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
       }
-      else if (t.closest('a.iv-hero-get, a.i3-btn-hero')) iev('intro_hero_cta', { cta: 'get_started' });
-      else if (t.closest('a.iv-hero-alt, a.i3-offer-ghost')) iev('intro_hero_cta', { cta: 'free_first_look' });
-      else if ((el = t.closest('a.iv-btn-bar, a.i3-btn-bar'))) iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' });
+      else if (t.closest('a.iv-hero-get, a.i3-btn-hero')) { iev('intro_hero_cta', { cta: 'get_started' }); heroEngaged('cta'); }
+      else if (t.closest('a.iv-hero-alt, a.i3-offer-ghost')) { iev('intro_hero_cta', { cta: 'free_first_look' }); heroEngaged('cta'); }
+      else if ((el = t.closest('a.iv-btn-bar, a.i3-btn-bar'))) { iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' }); heroEngaged('cta'); }
     }, true);
 
     // intro_section_view — once per section per pageview, at 30% visibility.
@@ -122,6 +137,7 @@
           if (en.isIntersecting && !seen[en.target.id]) {
             seen[en.target.id] = 1;
             iev('intro_section_view', { section: en.target.id.replace(/^i[v3]-/, '') });
+            heroEngaged('scroll');
           }
         });
       }, { threshold: 0.3 });
