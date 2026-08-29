@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-28.1';
+  var VERSION = '2026-08-28.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -48,7 +48,7 @@
         t.src = v; s = b.getElementsByTagName(e)[0];
         s.parentNode.insertBefore(t, s);
       }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '1468307528661515');
+      fbq('init', '1572929444470643');
       fbq('track', 'PageView');
     } catch (_) {}
   })();
