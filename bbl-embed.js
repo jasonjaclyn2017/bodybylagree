@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-29.1';
+  var VERSION = '2026-08-29.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -38,6 +38,7 @@
   //     OR hero/bar CTA click, whichever first, once per pageview) — the
   //     micro-conversion ad sets optimize on until Lead volume supports more
   //   InitiateCheckout → buy_click links + Kenko iframe reaching /pricing/buy/
+  //     (content_name = plan, content_ids = Kenko plan id, since v2026-08-29.2)
   //   CompleteRegistration → Kenko iframe reaching /create-account
   //   Lead → Kenko iframe reaching /thank-you/* (booking completed)
   (function metaPixelInit() {
@@ -59,6 +60,16 @@
     try { window.fbq && window.fbq('track', name, params || {}); dbg('fbq', [name, params]); } catch (_) {}
   }
 
+  // Kenko plan ids → names. kenkoPlan() pulls the product out of any buy URL
+  // (on-page link href or iframe route); used by the GA4 click handler, the
+  // D1 booking_route beacon, and the pixel funnel events so every checkout
+  // signal carries WHICH plan, not just that a buy page was reached.
+  var KENKO_PLANS = { '33024': 'tease', '34596': 'routine' };
+  function kenkoPlan(url) {
+    var m = String(url).match(/[?&]id=(\d+)/);
+    return m ? { id: m[1], plan: KENKO_PLANS[m[1]] || m[1] } : null;
+  }
+
   // --- GA4 custom events (added 2026-08-15) ---
   // gtag.js itself is loaded by Framer (site settings, G-T486J7W5WJ); we only
   // fire events. If gtag isn't up yet, arguments-objects pushed to dataLayer
@@ -73,14 +84,17 @@
     }
 
     // buy_click — SITE-WIDE: any link into Kenko's buy flow, labeled by plan
-    var PLANS = { '33024': 'tease', '34596': 'routine' };
+    // and by the button's own text so we know which CTA sent them.
     document.addEventListener('click', function (e) {
       var a = e.target && e.target.closest && e.target.closest('a[href]');
       if (a && a.href.indexOf('/pricing/buy/') !== -1) {
-        var m = a.href.match(/[?&]id=(\d+)/);
-        var plan = (m && (PLANS[m[1]] || m[1])) || 'unknown';
-        ev('buy_click', { plan: plan, page: location.pathname });
-        bblFbq('InitiateCheckout', { content_name: plan });
+        var p = kenkoPlan(a.href);
+        var plan = (p && p.plan) || 'unknown';
+        var cta = (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 50);
+        ev('buy_click', { plan: plan, page: location.pathname, cta: cta });
+        bblFbq('InitiateCheckout', p
+          ? { content_name: p.plan, content_ids: [p.id], content_type: 'product', content_category: 'link:' + cta }
+          : { content_name: plan, content_category: 'link:' + cta });
       }
     }, true);
 
@@ -228,6 +242,11 @@
           var data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
           if (!data || data.type !== 'RouteChanged' || !data.message || typeof data.message.path !== 'string') return;
           var route = data.message.path.split('?')[0];
+          // Keep the plan id on buy routes — '/pricing/buy/?id=33024' — so the
+          // D1 report can say WHICH product, not just "reached a buy page".
+          // Still matches the report's LIKE '/pricing/buy/%' queries.
+          var p = kenkoPlan(data.message.path);
+          if (p) route += '?id=' + p.id;
           var seenKey = 'bblUTMRoutes';
           var seen = (store(sessionStorage, seenKey) || '').split('|');
           if (seen.indexOf(route) !== -1) return;
@@ -254,12 +273,18 @@
         else if (route === '/create-account') stage = 'CompleteRegistration';
         else if (route.indexOf('/thank-you') === 0) stage = 'Lead';
         if (!stage) return;
+        // Dedupe per stage AND plan: viewing tease then routine should emit
+        // two InitiateCheckouts, one per product, each named by plan.
+        var p = kenkoPlan(data.message.path);
+        var seenVal = stage + (p ? ':' + p.plan : '');
         var seenKey = 'bblFbqStages';
         var seen = (store(sessionStorage, seenKey) || '').split('|');
-        if (seen.indexOf(stage) !== -1) return;
-        seen.push(stage);
+        if (seen.indexOf(seenVal) !== -1) return;
+        seen.push(seenVal);
         store(sessionStorage, seenKey, seen.join('|'));
-        bblFbq(stage, { content_name: route });
+        bblFbq(stage, p
+          ? { content_name: p.plan, content_ids: [p.id], content_type: 'product', content_category: 'kenko_route' }
+          : { content_name: route });
       } catch (_) {}
     });
   })();
