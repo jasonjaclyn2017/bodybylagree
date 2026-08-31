@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-29.2';
+  var VERSION = '2026-08-30.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -35,7 +35,8 @@
   // fails silently and must never break the site. Events fired elsewhere via
   // window.bblFbq (queued by the fbq stub even before fbevents.js loads):
   //   ViewContent → /intro* pages: engaged past the hero (first section view
-  //     OR hero/bar CTA click, whichever first, once per pageview) — the
+  //     OR hero/bar CTA click OR schedule-link click, whichever first, once
+  //     per pageview) — the
   //     micro-conversion ad sets optimize on until Lead volume supports more
   //   InitiateCheckout → buy_click links + Kenko iframe reaching /pricing/buy/
   //     (content_name = plan, content_ids = Kenko plan id, since v2026-08-29.2)
@@ -90,7 +91,12 @@
       if (a && a.href.indexOf('/pricing/buy/') !== -1) {
         var p = kenkoPlan(a.href);
         var plan = (p && p.plan) || 'unknown';
-        var cta = (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 50);
+        // Strip badge chrome (.i3-tag "Most Popular") before reading the label,
+        // or the 2-week offer reports as "Most Popular2 Weeks Unlimited · $100".
+        var cta = (a.textContent || '');
+        var badge = a.querySelector && a.querySelector('.i3-tag');
+        if (badge) cta = cta.replace(badge.textContent, '');
+        cta = cta.replace(/\s+/g, ' ').trim().slice(0, 50);
         ev('buy_click', { plan: plan, page: location.pathname, cta: cta });
         bblFbq('InitiateCheckout', p
           ? { content_name: p.plan, content_ids: [p.id], content_type: 'product', content_category: 'link:' + cta }
@@ -138,8 +144,22 @@
         iev('intro_faq_toggle', { question: s ? s.textContent.slice(0, 60) : '' });
       }
       else if (t.closest('a.iv-hero-get, a.i3-btn-hero')) { iev('intro_hero_cta', { cta: 'get_started' }); heroEngaged('cta'); }
-      else if (t.closest('a.iv-hero-alt, a.i3-offer-ghost')) { iev('intro_hero_cta', { cta: 'free_first_look' }); heroEngaged('cta'); }
+      // Free-class paths. There are now TWO on BBLIntro3 and they must stay
+      // apart: the hero link (added 2026-08-29) and the third offer in the
+      // Start-here stack. The old .i3-offer-ghost class went away when all
+      // three offers were unified on .i3-offer, so that offer is matched by
+      // its #i3-look href instead — a class we don't control the styling of
+      // is a fragile hook, an anchor target is not.
+      else if (t.closest('a.iv-hero-alt, a.i3-hero-link')) { iev('intro_hero_cta', { cta: 'free_class_hero' }); heroEngaged('cta'); }
+      else if ((el = t.closest('a.i3-offer')) && /#i3-look$/.test(el.getAttribute('href') || '')) { iev('intro_hero_cta', { cta: 'free_class_offer' }); heroEngaged('cta'); }
       else if ((el = t.closest('a.iv-btn-bar, a.i3-btn-bar'))) { iev('intro_bar_cta', { cta: /iv-look/.test(el.href) ? 'free_first_look' : 'claim_offer' }); heroEngaged('cta'); }
+      // "View Class Schedule ↗" (added 2026-08-30) — the only link that leaves
+      // /intro, and it opens in a new tab, so GA's own outbound-click tracking
+      // would land on the /calendar pageview instead of here. The component
+      // stamps data-i3-sched with its placement (offers | form) so we can see
+      // which of the two positions is doing the work; keep them separate rather
+      // than folding into one count, that's the whole reason for two links.
+      else if ((el = t.closest('a.i3-sched'))) { iev('intro_schedule_click', { loc: el.getAttribute('data-i3-sched') || 'unknown' }); heroEngaged('schedule'); }
     }, true);
 
     // intro_section_view — once per section per pageview, at 30% visibility.
