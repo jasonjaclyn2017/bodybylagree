@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-30.1';
+  var VERSION = '2026-08-31.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -160,6 +160,15 @@
       // which of the two positions is doing the work; keep them separate rather
       // than folding into one count, that's the whole reason for two links.
       else if ((el = t.closest('a.i3-sched'))) { iev('intro_schedule_click', { loc: el.getAttribute('data-i3-sched') || 'unknown' }); heroEngaged('schedule'); }
+      // Free-class code funnel (added 2026-08-31). The reveal button lives in
+      // the Try Out Lagree section; the two hint CTAs live in the PORTAL'D
+      // overlay on document.body — this document-level capture listener is
+      // exactly why they're still caught. The component also writes
+      // localStorage bblFreeCode on reveal; the helper-chip module (below,
+      // outside this intro-only IIFE) consumes it on the booking pages.
+      else if (t.closest('.i3-btn-code')) { iev('intro_code_reveal', {}); heroEngaged('cta'); }
+      else if (t.closest('a.i3-hint-badge')) iev('intro_code_cta', { cta: 'store_badge' });
+      else if (t.closest('a.i3-hint-sched')) iev('intro_code_cta', { cta: 'view_schedule' });
     }, true);
 
     // intro_section_view — once per section per pageview, at 30% visibility.
@@ -305,6 +314,152 @@
         bblFbq(stage, p
           ? { content_name: p.plan, content_ids: [p.id], content_type: 'product', content_category: 'kenko_route' }
           : { content_name: route });
+      } catch (_) {}
+    });
+  })();
+
+  // --- Free-class helper chip (added 2026-08-31) ---
+  // BBLIntro3's code overlay writes localStorage bblFreeCode ({code, t}) when
+  // a visitor reveals the free-class code. For 48h after that, the booking
+  // pages (/schedule, /calendar, /memberships) show a small fixed chip that
+  // walks them through Kenko's redemption steps — the answer to "the hints
+  // are gone once they leave /intro". Stage signals, in order of depth:
+  //   parent hash   — Kenko syncs its route into our hash on /schedule:
+  //                   #/class-detail/{event}/r/{region} = class page,
+  //                   trailing /1 = post-login booking step. The hash goes
+  //                   QUIET during the pricing/discount screens (owner
+  //                   walked the flow 2026-08-31), so...
+  //   RouteChanged  — the Kenko iframe's postMessage keeps reporting inner
+  //                   routes (/pricing*, /create-account, /thank-you/*) even
+  //                   when the hash doesn't move. Same source the pixel
+  //                   funnel uses.
+  // /thank-you retires the chip and clears the flag — journey complete.
+  // Dismissal (×) hides it for the session. GA4: code_chip_show /
+  // code_chip_stage / code_chip_dismiss, deduped per stage per session.
+  // Must never break the site: everything wrapped, storage guarded.
+  (function freeCodeChip() {
+    var CHIP_PAGES = ['/schedule', '/calendar', '/memberships'];
+    var path = location.pathname.replace(/\/$/, '') || '/';
+    if (CHIP_PAGES.indexOf(path) === -1) return;
+    var flag = null;
+    try { flag = JSON.parse(localStorage.getItem('bblFreeCode') || 'null'); } catch (_) {}
+    if (!flag || !flag.code || !flag.t || Date.now() - flag.t > 48 * 36e5) return;
+    try { if (sessionStorage.getItem('bblChipHide')) return; } catch (_) {}
+    var code = String(flag.code).slice(0, 24);
+
+    function ev(name, params) {
+      try {
+        window.dataLayer = window.dataLayer || [];
+        (window.gtag || function () { dataLayer.push(arguments); })('event', name, params || {});
+        dbg('chip ga4', [name, params]);
+      } catch (_) {}
+    }
+    var evSeen = {};
+    function evOnce(name, stage) {
+      var k = name + ':' + (stage || '');
+      if (evSeen[k]) return;
+      evSeen[k] = 1;
+      ev(name, { page: path, stage: stage || '', code: code });
+    }
+
+    var css = document.createElement('style');
+    css.textContent =
+      '.bbl-code-chip{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2000000000;' +
+      'display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 24px));box-sizing:border-box;' +
+      'background:rgba(15,14,12,.95);color:#F4EEE3;border:1px solid #C7A24B;border-radius:10px;' +
+      'padding:10px 12px 10px 14px;font:13.5px/1.45 Inter,system-ui,sans-serif;' +
+      'box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .3s ease,transform .3s ease;}' +
+      '.bbl-code-chip b{color:#C7A24B;font-weight:600;}' +
+      '.bbl-code-chip-x{flex:none;background:none;border:none;color:#8f887a;font-size:16px;line-height:1;' +
+      'padding:4px 6px;cursor:pointer;}' +
+      '.bbl-code-chip-hidden{opacity:0;transform:translateX(-50%) translateY(10px);pointer-events:none;}';
+    document.head.appendChild(css);
+
+    var chip = null, msgEl = null;
+    function ensureChip() {
+      if (chip || !document.body) return;
+      chip = document.createElement('div');
+      chip.className = 'bbl-code-chip';
+      msgEl = document.createElement('span');
+      var x = document.createElement('button');
+      x.className = 'bbl-code-chip-x';
+      x.setAttribute('aria-label', 'Dismiss');
+      x.textContent = '×';
+      x.addEventListener('click', function () {
+        try { sessionStorage.setItem('bblChipHide', '1'); } catch (_) {}
+        retire();
+        evOnce('code_chip_dismiss', curStage);
+      });
+      chip.appendChild(msgEl);
+      chip.appendChild(x);
+      document.body.appendChild(chip);
+    }
+    function retire() {
+      if (chip) chip.classList.add('bbl-code-chip-hidden');
+    }
+
+    // Stage copy. 'hold' reassures; 'steps' is the full redemption walk —
+    // shown from the post-login booking step on, because the pricing screens
+    // that follow never move the parent hash.
+    var STAGES = {
+      hold: '🎟 Code <b>' + code + '</b> — first class free. Book any class to use it.',
+      steps: '🎟 View Pricing Options → <b>Single Session</b> (bottom of list) → Apply Discount → <b>' + code + '</b> → Apply → total <b>$0</b>',
+    };
+    var stageRank = { hold: 0, steps: 1 };
+    var curStage = null;
+    function setStage(stage) {
+      // Only move forward — a late 'hold' signal must not undo 'steps'.
+      if (curStage && stageRank[stage] <= stageRank[curStage]) return;
+      curStage = stage;
+      ensureChip();
+      if (!chip) return;
+      msgEl.innerHTML = STAGES[stage];
+      chip.classList.remove('bbl-code-chip-hidden');
+      evOnce(curStage === 'hold' ? 'code_chip_show' : 'code_chip_stage', stage);
+      dbg('chip stage', stage);
+    }
+
+    function checkHash() {
+      var h = location.hash || '';
+      // #/class-detail/{event}/r/{region}/1 — the post-login booking step,
+      // the LAST hash change before the pricing black box.
+      if (/#\/class-detail\/\d+\/r\/\d+\/\d+/.test(h)) setStage('steps');
+    }
+
+    // Boot: body may not exist yet (script runs early); retry briefly.
+    var tries = 0;
+    (function boot() {
+      if (document.body) {
+        setStage('hold');
+        checkHash();
+        return;
+      }
+      if (++tries < 40) setTimeout(boot, 250);
+    })();
+    window.addEventListener('hashchange', checkHash);
+
+    // Kenko iframe inner routes — same filter pattern as the funnel
+    // listeners above.
+    window.addEventListener('message', function (e) {
+      try {
+        var iframe = document.querySelector('iframe[name="studioyou-iframe"]');
+        if (!iframe || e.source !== iframe.contentWindow) return;
+        var data = typeof e.data === 'object' ? e.data : JSON.parse(e.data);
+        if (!data || data.type !== 'RouteChanged' || !data.message || typeof data.message.path !== 'string') return;
+        var route = data.message.path.split('?')[0];
+        dbg('chip route', route);
+        if (route.indexOf('/thank-you') === 0) {
+          // Journey complete (free or paid — we can't tell from here, the
+          // D1 booking_route data can). Retire the chip and the flag.
+          evOnce('code_chip_stage', 'complete');
+          try { localStorage.removeItem('bblFreeCode'); } catch (_) {}
+          retire();
+          return;
+        }
+        if (route.indexOf('/pricing') === 0 || route.indexOf('/create-account') === 0 ||
+            /^\/class-detail\/\d+\/r\/\d+\/\d+/.test(route)) {
+          setStage('steps');
+        }
       } catch (_) {}
     });
   })();
