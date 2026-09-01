@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-31.2';
+  var VERSION = '2026-08-31.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -364,15 +364,15 @@
 
     var css = document.createElement('style');
     css.textContent =
-      '.bbl-code-chip{position:fixed;left:12px;bottom:16px;z-index:2000000000;' +
-      'display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 96px));box-sizing:border-box;' +
+      '.bbl-code-chip{position:fixed;left:50%;transform:translateX(-50%);top:80px;z-index:2000000000;' +
+      'display:flex;align-items:center;gap:10px;max-width:min(640px,calc(100vw - 24px));box-sizing:border-box;' +
       'background:rgba(15,14,12,.95);color:#F4EEE3;border:1px solid #C7A24B;border-radius:10px;' +
-      'padding:10px 12px 10px 14px;font:13.5px/1.45 Inter,system-ui,sans-serif;' +
+      'padding:12px 14px 12px 16px;font:15.5px/1.5 Inter,system-ui,sans-serif;' +
       'box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .3s ease,transform .3s ease;}' +
       '.bbl-code-chip b{color:#C7A24B;font-weight:600;}' +
       '.bbl-code-chip-x{flex:none;background:none;border:none;color:#8f887a;font-size:16px;line-height:1;' +
       'padding:4px 6px;cursor:pointer;}' +
-      '.bbl-code-chip-hidden{opacity:0;transform:translateY(10px);pointer-events:none;}';
+      '.bbl-code-chip-hidden{opacity:0;transform:translateX(-50%) translateY(-10px);pointer-events:none;}';
     document.head.appendChild(css);
 
     var chip = null, msgEl = null;
