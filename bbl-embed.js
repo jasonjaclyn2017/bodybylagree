@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-06.1';
+  var VERSION = '2026-09-07.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1299,6 +1299,64 @@
     + '.bbl-header-hidden{transform:translateY(-100%)!important}';
   document.head.appendChild(darkHeaderCSS);
 
+  // --- Mobile header: two-line logo + inline Schedule / Pricing (2026-09-07) ---
+  // The Nav Bar's tablet/phone variants ("Mobile Close" / "Mobile Open") cannot
+  // be edited through the Framer MCP plugin: creating a layer inside a variant
+  // throws "Assertion Error: Original id must not be empty" and crashes the
+  // project, because every variant layer must map to an original in the primary
+  // (desktop) variant. So the mobile header is finished here at runtime:
+  //   - swap the one-line logo for bbls-text-2.png ("SOCIETY" wraps to a second
+  //     line) and narrow it to 150px. Framer sizes the logo by aspect-ratio on
+  //     BOTH the instance container (10.8) and the Logo frame (11.3), so both are
+  //     overridden below — with either left in place the second line clips to
+  //     a 14px strip;
+  //   - insert a Schedule / Pricing pair between the logo and the hamburger. The
+  //     hamburger menu itself is untouched and still lists every page.
+  // Applies only when a "Hamburger" exists inside "Logo and Hamburger" (the
+  // mobile variants); desktop Variant 1 has no hamburger and is left alone.
+  // Framer re-renders the variant on menu open/close and on breakpoint change,
+  // so adoptHeader() installs a MutationObserver that re-runs this idempotent
+  // pass. Link colours come from the .bbl-dark-header / .bbl-light-header
+  // rules above (they target every <a> in the header).
+  var MOBILE_LOGO_URL = 'https://bodybylagree.vercel.app/bbls-text-2.png';
+  var mobileHeaderCSS = document.createElement('style');
+  mobileHeaderCSS.textContent = ''
+    + '[data-framer-name="Logo and Hamburger"]>div:first-child>div{width:150px!important;height:auto!important;aspect-ratio:auto!important}'
+    + '[data-framer-name="Logo and Hamburger"]>div:first-child a{width:100%!important;height:auto!important;aspect-ratio:auto!important}'
+    + '[data-framer-name="Logo and Hamburger"] [data-framer-name="Logo"]{aspect-ratio:956/180!important;height:auto!important}'
+    + '[data-framer-name="Logo and Hamburger"] [data-framer-name="Logo"] img{width:100%!important;height:auto!important;object-fit:contain!important}'
+    + '.bbl-quick-links{display:flex;gap:14px;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:2px}'
+    + '.bbl-quick-links a{font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:14px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
+    // Narrow phones (iPhone SE class): shave the logo and the gaps so the row
+    // still fits without the hamburger spilling past the padding.
+    + '@media (max-width:340px){[data-framer-name="Logo and Hamburger"]>div:first-child>div{width:132px!important}.bbl-quick-links{gap:10px}.bbl-quick-links a{font-size:13px}}';
+  document.head.appendChild(mobileHeaderCSS);
+
+  function enhanceMobileHeader(header) {
+    var wrap = header.querySelector('[data-framer-name="Logo and Hamburger"]');
+    if (!wrap) return;
+    var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
+    if (!ham) return;
+    var img = wrap.querySelector('[data-framer-name="Logo"] img');
+    if (img && img.src !== MOBILE_LOGO_URL) {
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      img.src = MOBILE_LOGO_URL;
+    }
+    if (!wrap.querySelector('.bbl-quick-links')) {
+      var quick = document.createElement('div');
+      quick.className = 'bbl-quick-links';
+      [['Schedule', '/calendar'], ['Pricing', '/pricing']].forEach(function (pair) {
+        var a = document.createElement('a');
+        a.href = pair[1];
+        a.textContent = pair[0];
+        quick.appendChild(a);
+      });
+      wrap.insertBefore(quick, ham);
+      dbg('mobile header enhanced');
+    }
+  }
+
   // Disable the browser's native image drag site-wide so it can't hijack
   // click-drag interactions (e.g. the Meet the Team drag-to-scroll). The CSS
   // covers WebKit/Blink; the dragstart guard covers Firefox and the rest.
@@ -1462,6 +1520,9 @@
     // duration 0s, so it never animates and is not a factor.)
     void el.offsetWidth;
     initHideOnScrollDown(el);
+    enhanceMobileHeader(el);
+    new MutationObserver(function () { enhanceMobileHeader(el); })
+      .observe(el, { childList: true, subtree: true });
     return true;
   }
   if (!adoptHeader()) {
