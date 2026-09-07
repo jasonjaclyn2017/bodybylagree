@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.6';
+  var VERSION = '2026-09-07.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1312,16 +1312,20 @@
   var chatDockCSS = document.createElement('style');
   chatDockCSS.textContent = ''
     + 'html.bbl-chat-docked:not(.bbl-chat-open) iframe[src*="widget.gokenko.com"]{display:none!important}'
-    // Lives INSIDE the <footer> (flex column, 40px top padding, #1a1a1a) as its
-    // first child, so it spans the footer and inherits its background. As a
-    // sibling it sat in the cream page wrapper as a narrow dark box.
-    + '.bbl-chat-dock{display:none;width:100%;align-self:stretch;text-align:center;padding:0 0 36px}'
+    // Lives INSIDE the <footer> as its first child but absolutely positioned,
+    // so the footer keeps its original height: the pill straddles the footer's
+    // top border, right-aligned to the footer's 30px content padding (20px on
+    // phones). Solid dark fill so the top half stays legible over whatever sits
+    // above the footer (the cream page gap on /pricing and /calendar).
+    + 'html.bbl-chat-docked footer{position:relative}'
+    + '.bbl-chat-dock{display:none;position:absolute;top:0;right:30px;transform:translateY(-50%);z-index:2;margin:0;padding:0}'
+    + '@media (max-width:519px){.bbl-chat-dock{right:20px}}'
     + 'html.bbl-chat-docked .bbl-chat-dock{display:block}'
     + '.bbl-chat-dock button{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;border-radius:999px;'
-    +   'border:1.5px solid rgba(255,255,255,0.6);background:transparent;color:#fff;cursor:pointer;'
+    +   'border:1.5px solid rgba(255,255,255,0.6);background:rgb(26,26,26);color:#fff;cursor:pointer;'
     +   'font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:16px;line-height:1.2;letter-spacing:-0.1px;'
     +   'transition:background-color .2s ease,color .2s ease}'
-    + '.bbl-chat-dock button:hover{background:#fff;color:rgb(26,26,26)}'
+    + '.bbl-chat-dock button:hover{background:#fff;border-color:#fff;color:rgb(26,26,26)}'
     + '.bbl-chat-dock svg{width:20px;height:20px;flex:0 0 auto}';
   document.head.appendChild(chatDockCSS);
 
