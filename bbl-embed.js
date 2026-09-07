@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.8';
+  var VERSION = '2026-09-07.9';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -65,7 +65,17 @@
   // (on-page link href or iframe route); used by the GA4 click handler, the
   // D1 booking_route beacon, and the pixel funnel events so every checkout
   // signal carries WHICH plan, not just that a buy page was reached.
-  var KENKO_PLANS = { '33024': 'tease', '34596': 'routine' };
+  // Full catalog as sold on /pricing (BBLPricing.tsx, harvested 2026-09-06).
+  // Unknown ids fall back to the raw id so nothing is ever dropped.
+  var KENKO_PLANS = {
+    '33024': 'tease', '34596': 'routine', '38234': 'founding',
+    '33025': 'single', '33028': 'starter_4', '33029': 'momentum_8', '33274': 'strength_12',
+    '38909': 'eight_6mo', '38912': 'twelve_6mo', '38948': 'unlimited_6mo',
+    '38907': 'eight_3mo', '38911': 'twelve_3mo', '38947': 'unlimited_3mo',
+    '38498': 'eight_flex', '38945': 'twelve_flex', '38946': 'unlimited_flex',
+    '38964': 'eight_pif', '38966': 'twelve_pif',
+    '33348': 'sauna_1', '33349': 'sauna_3', '39295': 'sauna_unlimited'
+  };
   function kenkoPlan(url) {
     var m = String(url).match(/[?&]id=(\d+)/);
     return m ? { id: m[1], plan: KENKO_PLANS[m[1]] || m[1] } : null;
@@ -91,16 +101,37 @@
       if (a && a.href.indexOf('/pricing/buy/') !== -1) {
         var p = kenkoPlan(a.href);
         var plan = (p && p.plan) || 'unknown';
-        // Strip badge chrome (.i3-tag "Most Popular") before reading the label,
+        // /pricing rows and cards are whole-row links ("The Eight8 classes a
+        // month$160/mo"), so prefer their name cell as the label. Elsewhere,
+        // strip badge chrome (.i3-tag "Most Popular") before reading the text,
         // or the 2-week offer reports as "Most Popular2 Weeks Unlimited · $100".
-        var cta = (a.textContent || '');
-        var badge = a.querySelector && a.querySelector('.i3-tag');
+        var nameEl = a.querySelector && a.querySelector('.pr-row-name, .pr-card-name');
+        var cta = ((nameEl || a).textContent || '');
+        var badge = !nameEl && a.querySelector && a.querySelector('.i3-tag');
         if (badge) cta = cta.replace(badge.textContent, '');
         cta = cta.replace(/\s+/g, ' ').trim().slice(0, 50);
         ev('buy_click', { plan: plan, page: location.pathname, cta: cta });
         bblFbq('InitiateCheckout', p
           ? { content_name: p.plan, content_ids: [p.id], content_type: 'product', content_category: 'link:' + cta }
           : { content_name: plan, content_category: 'link:' + cta });
+        // The link lands on /memberships, whose iframe boots straight into the
+        // same buy route and would fire a second InitiateCheckout for the same
+        // plan. Pre-mark the stage so the route listener's dedupe skips it.
+        if (p) {
+          try {
+            var seenVal = 'InitiateCheckout:' + p.plan;
+            var seen = (sessionStorage.getItem('bblFbqStages') || '').split('|');
+            if (seen.indexOf(seenVal) === -1) { seen.push(seenVal); sessionStorage.setItem('bblFbqStages', seen.join('|')); }
+          } catch (_) {}
+        }
+      }
+      // pricing_tier_view — /pricing's membership table shows one term at a
+      // time; the "Also:" buttons swap in another. Which term visitors reach
+      // for is the pricing page's own engagement signal.
+      var tierBtn = e.target && e.target.closest && e.target.closest('.pr-showbtn');
+      if (tierBtn) {
+        var tier = (tierBtn.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+        ev('pricing_tier_view', { plan: tier, page: location.pathname });
       }
     }, true);
 
@@ -281,7 +312,9 @@
           if (seen.indexOf(route) !== -1) return;
           seen.push(route);
           store(sessionStorage, seenKey, seen.join('|'));
-          send({ event: 'booking_route', page: location.pathname, route: route });
+          // referrer says which of our pages sent them here (e.g. /pricing →
+          // /memberships buy route after a full-page nav).
+          send({ event: 'booking_route', page: location.pathname, route: route, referrer: document.referrer });
         } catch (_) {}
       });
     }
