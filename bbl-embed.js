@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.1';
+  var VERSION = '2026-09-07.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1314,6 +1314,9 @@
   //     hamburger menu itself is untouched and still lists every page.
   // Applies only when a "Hamburger" exists inside "Logo and Hamburger" (the
   // mobile variants); desktop Variant 1 has no hamburger and is left alone.
+  // The sizing CSS is scoped to .bbl-mobile-header, which the JS adds to that
+  // wrapper — desktop Variant 1 has the same "Logo and Hamburger" layer name,
+  // and an unscoped selector shrank the desktop logo to 150px (v2026-09-07.1).
   // Framer re-renders the variant on menu open/close and on breakpoint change,
   // so adoptHeader() installs a MutationObserver that re-runs this idempotent
   // pass. Link colours come from the .bbl-dark-header / .bbl-light-header
@@ -1321,15 +1324,15 @@
   var MOBILE_LOGO_URL = 'https://bodybylagree.vercel.app/bbls-text-2.png';
   var mobileHeaderCSS = document.createElement('style');
   mobileHeaderCSS.textContent = ''
-    + '[data-framer-name="Logo and Hamburger"]>div:first-child>div{width:150px!important;height:auto!important;aspect-ratio:auto!important}'
-    + '[data-framer-name="Logo and Hamburger"]>div:first-child a{width:100%!important;height:auto!important;aspect-ratio:auto!important}'
-    + '[data-framer-name="Logo and Hamburger"] [data-framer-name="Logo"]{aspect-ratio:956/180!important;height:auto!important}'
-    + '[data-framer-name="Logo and Hamburger"] [data-framer-name="Logo"] img{width:100%!important;height:auto!important;object-fit:contain!important}'
+    + '.bbl-mobile-header>div:first-child>div{width:150px!important;height:auto!important;aspect-ratio:auto!important}'
+    + '.bbl-mobile-header>div:first-child a{width:100%!important;height:auto!important;aspect-ratio:auto!important}'
+    + '.bbl-mobile-header [data-framer-name="Logo"]{aspect-ratio:956/180!important;height:auto!important}'
+    + '.bbl-mobile-header [data-framer-name="Logo"] img{width:100%!important;height:auto!important;object-fit:contain!important}'
     + '.bbl-quick-links{display:flex;gap:14px;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:2px}'
     + '.bbl-quick-links a{font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:14px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
     // Narrow phones (iPhone SE class): shave the logo and the gaps so the row
     // still fits without the hamburger spilling past the padding.
-    + '@media (max-width:340px){[data-framer-name="Logo and Hamburger"]>div:first-child>div{width:132px!important}.bbl-quick-links{gap:10px}.bbl-quick-links a{font-size:13px}}';
+    + '@media (max-width:340px){.bbl-mobile-header>div:first-child>div{width:132px!important}.bbl-quick-links{gap:10px}.bbl-quick-links a{font-size:13px}}';
   document.head.appendChild(mobileHeaderCSS);
 
   function enhanceMobileHeader(header) {
@@ -1337,6 +1340,7 @@
     if (!wrap) return;
     var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
     if (!ham) return;
+    wrap.classList.add('bbl-mobile-header');
     var img = wrap.querySelector('[data-framer-name="Logo"] img');
     if (img && img.src !== MOBILE_LOGO_URL) {
       img.removeAttribute('srcset');
