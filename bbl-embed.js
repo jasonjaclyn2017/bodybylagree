@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.7';
+  var VERSION = '2026-09-07.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1317,7 +1317,9 @@
     // top border, right-aligned to the footer's 30px content padding (20px on
     // phones). Solid dark fill so the top half stays legible over whatever sits
     // above the footer (the cream page gap on /pricing and /calendar).
-    + 'html.bbl-chat-docked footer{position:relative}'
+    // Framer gives the footer overflow:hidden, which clipped the top half of
+    // the pill; nothing in the footer relies on the clip.
+    + 'html.bbl-chat-docked footer{position:relative;overflow:visible!important}'
     + '.bbl-chat-dock{display:none;position:absolute;top:0;right:30px;transform:translateY(-50%);z-index:2;margin:0;padding:0}'
     + '@media (max-width:519px){.bbl-chat-dock{right:20px}}'
     + 'html.bbl-chat-docked .bbl-chat-dock{display:block}'
