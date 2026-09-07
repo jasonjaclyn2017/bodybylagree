@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.5';
+  var VERSION = '2026-09-07.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1312,7 +1312,10 @@
   var chatDockCSS = document.createElement('style');
   chatDockCSS.textContent = ''
     + 'html.bbl-chat-docked:not(.bbl-chat-open) iframe[src*="widget.gokenko.com"]{display:none!important}'
-    + '.bbl-chat-dock{display:none;background:rgb(26,26,26);padding:36px 20px 8px;text-align:center}'
+    // Lives INSIDE the <footer> (flex column, 40px top padding, #1a1a1a) as its
+    // first child, so it spans the footer and inherits its background. As a
+    // sibling it sat in the cream page wrapper as a narrow dark box.
+    + '.bbl-chat-dock{display:none;width:100%;align-self:stretch;text-align:center;padding:0 0 36px}'
     + 'html.bbl-chat-docked .bbl-chat-dock{display:block}'
     + '.bbl-chat-dock button{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;border-radius:999px;'
     +   'border:1.5px solid rgba(255,255,255,0.6);background:transparent;color:#fff;cursor:pointer;'
@@ -1372,8 +1375,8 @@
       }, 100);
       return;
     }
-    footer.parentNode.insertBefore(buildChatDock(), footer);
-    dbg('chat dock inserted above footer');
+    footer.insertBefore(buildChatDock(), footer.firstChild);
+    dbg('chat dock inserted at top of footer');
   }
   window.addEventListener('bbl-nav', function () { chatDockRetries = 0; updateChatDock(); });
   window.addEventListener('popstate', function () { chatDockRetries = 0; updateChatDock(); });
