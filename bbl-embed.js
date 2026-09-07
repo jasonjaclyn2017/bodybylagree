@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-08-31.3';
+  var VERSION = '2026-09-06.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -871,8 +871,11 @@
     console.log('[bbl-embed] overlay alpha set to', a);
   };
 
-  // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker
-  if (oldWasVisible || location.pathname.includes('/schedule') || location.pathname.includes('/pricing')) {
+  // Immediate show on iframe pages (fast path) — classList.add is idempotent, no flicker.
+  // Exact match against EMBED_PAGES: the old substring test lit the overlay on
+  // any path containing '/pricing', which stranded the iframe-less /pricing
+  // overlay page (2026-09-06) behind a dark mask until the failsafe fired.
+  if (oldWasVisible || EMBED_PAGES.indexOf(normalizedPath()) !== -1) {
     dbg('init fast-path: showing overlay', { oldWasVisible: oldWasVisible });
     overlay.classList.add('visible');
   }
