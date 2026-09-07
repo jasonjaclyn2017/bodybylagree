@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.4';
+  var VERSION = '2026-09-07.5';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1299,6 +1299,90 @@
     + '.bbl-header-hidden{transform:translateY(-100%)!important}';
   document.head.appendChild(darkHeaderCSS);
 
+  // --- Docked chat on /calendar and /pricing (2026-09-07) ---
+  // Kenko's chat widget is a fixed iframe (widget.gokenko.com, z-index 2^31-1)
+  // that floats a bubble plus an auto-greeting over the bottom-right corner.
+  // Those two pages are dense with their own controls, so the floating bubble
+  // is hidden there and replaced by a "Chat with us!" button that sits on top
+  // of the site footer. Tapping it calls Kenko's own openKenkoChat(); the
+  // iframe is un-hidden while the widget reports state "open" and hidden again
+  // when it reports "closed" (widget.js posts {type:'widget-state', state} to
+  // the parent on every change). Everything else about the widget is Kenko's.
+  var CHAT_DOCKED_PATHS = ['/calendar', '/pricing'];
+  var chatDockCSS = document.createElement('style');
+  chatDockCSS.textContent = ''
+    + 'html.bbl-chat-docked:not(.bbl-chat-open) iframe[src*="widget.gokenko.com"]{display:none!important}'
+    + '.bbl-chat-dock{display:none;background:rgb(26,26,26);padding:36px 20px 8px;text-align:center}'
+    + 'html.bbl-chat-docked .bbl-chat-dock{display:block}'
+    + '.bbl-chat-dock button{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;border-radius:999px;'
+    +   'border:1.5px solid rgba(255,255,255,0.6);background:transparent;color:#fff;cursor:pointer;'
+    +   'font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:16px;line-height:1.2;letter-spacing:-0.1px;'
+    +   'transition:background-color .2s ease,color .2s ease}'
+    + '.bbl-chat-dock button:hover{background:#fff;color:rgb(26,26,26)}'
+    + '.bbl-chat-dock svg{width:20px;height:20px;flex:0 0 auto}';
+  document.head.appendChild(chatDockCSS);
+
+  function isChatDockedPath() {
+    return CHAT_DOCKED_PATHS.indexOf(normalizedPath()) !== -1;
+  }
+  function setChatOpen(open) {
+    document.documentElement.classList.toggle('bbl-chat-open', !!open);
+  }
+  window.addEventListener('message', function (e) {
+    if (e.origin !== 'https://widget.gokenko.com') return;
+    var d = e.data;
+    if (!d || d.type !== 'widget-state') return;
+    dbg('kenko widget-state', d.state);
+    setChatOpen(d.state === 'open');
+  });
+  function buildChatDock() {
+    var dock = document.createElement('div');
+    dock.className = 'bbl-chat-dock';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Chat with us');
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + '<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.2-4.2A8 8 0 1 1 21 12z"/></svg>'
+      + '<span>Chat with us!</span>';
+    btn.addEventListener('click', function () {
+      setChatOpen(true); // show the iframe now; widget-state confirms shortly
+      if (typeof window.openKenkoChat === 'function') window.openKenkoChat();
+      else dbg('openKenkoChat missing - widget.js not loaded yet');
+    });
+    dock.appendChild(btn);
+    return dock;
+  }
+  var chatDockRetryTimer = null;
+  var chatDockRetries = 0;
+  function updateChatDock() {
+    var docked = isChatDockedPath();
+    document.documentElement.classList.toggle('bbl-chat-docked', docked);
+    if (!docked) return;
+    if (document.querySelector('.bbl-chat-dock')) return;
+    var footer = document.querySelector('footer');
+    // Same hydration rule as the mobile header: never insert next to Framer's
+    // SSR'd footer before React has claimed it, or hydration removes us.
+    if (!footer || !isReactHydrated(footer)) {
+      if (chatDockRetryTimer || chatDockRetries > 150) return;
+      chatDockRetryTimer = setTimeout(function () {
+        chatDockRetryTimer = null;
+        chatDockRetries++;
+        updateChatDock();
+      }, 100);
+      return;
+    }
+    footer.parentNode.insertBefore(buildChatDock(), footer);
+    dbg('chat dock inserted above footer');
+  }
+  window.addEventListener('bbl-nav', function () { chatDockRetries = 0; updateChatDock(); });
+  window.addEventListener('popstate', function () { chatDockRetries = 0; updateChatDock(); });
+  // Framer may drop the dock when it re-renders around the footer (SPA route
+  // change); this page-level observer re-inserts it on the next batch.
+  new MutationObserver(function () {
+    if (isChatDockedPath() && !document.querySelector('.bbl-chat-dock')) updateChatDock();
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
   // --- Mobile header: two-line logo + inline Schedule / Pricing (2026-09-07) ---
   // The Nav Bar's tablet/phone variants ("Mobile Close" / "Mobile Open") cannot
   // be edited through the Framer MCP plugin: creating a layer inside a variant
@@ -1489,11 +1573,11 @@
   // which happens *before* Framer mounts the new route, so the probe answers
   // for the page we just left. (/calendar is intentionally absent: dark is
   // the default, so the calendar page gets the dark header for free.)
-  // /calendar additionally drops the header's background entirely while the
-  // page is scrolled to the top, so the calendar band's gradient reads as one
-  // continuous surface. Past the threshold the usual dark wash fades back in
+  // /calendar and /pricing additionally drop the header's background entirely
+  // while the page is scrolled to the top, so the calendar band's gradient /
+  // the pricing page's dark hero read as one continuous surface. Past the threshold the usual dark wash fades back in
   // (the header sits over calendar cells there and needs the separation).
-  var CLEAR_HEADER_PATHS = ['/calendar'];
+  var CLEAR_HEADER_PATHS = ['/calendar', '/pricing'];
   var CLEAR_HEADER_MAX_Y = 20;
 
   function initDarkHeader(header) {
@@ -1598,6 +1682,8 @@
     // page forever.
     setTimeout(function () { headerWatch.disconnect(); }, 10000);
   }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateChatDock);
+  else updateChatDock();
   // If Framer replaces the header element outright (hydration fallback /
   // variant remount), everything above is bound to a detached node. Cheap
   // contains() check per mutation batch; re-adopt only when it actually
