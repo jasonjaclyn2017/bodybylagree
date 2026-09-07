@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.3';
+  var VERSION = '2026-09-07.4';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1340,11 +1340,37 @@
     + '@media (max-width:340px){.bbl-logo-stacked>div:first-child>div{width:132px!important}.bbl-quick-links{gap:12px;margin-right:4px}.bbl-quick-links a{font-size:13px}}';
   document.head.appendChild(mobileHeaderCSS);
 
+  function isReactHydrated(node) {
+    var keys = Object.keys(node);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].indexOf('__reactFiber') === 0) return true;
+    }
+    return false;
+  }
+  var enhanceRetryTimer = null;
+  var enhanceRetries = 0;
+  function scheduleEnhanceRetry(header) {
+    if (enhanceRetryTimer || enhanceRetries > 150) return; // give up after ~15s
+    enhanceRetryTimer = setTimeout(function () {
+      enhanceRetryTimer = null;
+      enhanceRetries++;
+      // Re-resolve: the header may have been replaced in the meantime.
+      enhanceMobileHeader(headerInit && document.documentElement.contains(headerInit) ? headerInit : header);
+    }, 100);
+  }
+
   function enhanceMobileHeader(header) {
     var wrap = header.querySelector('[data-framer-name="Logo and Hamburger"]');
     if (!wrap) return;
     var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
     if (!ham) return;
+    // Never touch the header before React has hydrated it. Framer server-renders
+    // the page and hydrates later; on phones (2026-09-07 report) our injected
+    // links and logo swap landed in the SSR DOM first, hydration then rebuilt
+    // the header without them — links "appear then disappear", logo goes black
+    // because the dark-header class went with it. A hydrated element carries a
+    // __reactFiber$… expando; until it does, retry on a short timer.
+    if (!isReactHydrated(wrap)) { scheduleEnhanceRetry(header); return; }
     wrap.classList.add('bbl-mobile-header');
     var stacked = stackedLogoMQ.matches;
     wrap.classList.toggle('bbl-logo-stacked', stacked);
@@ -1486,6 +1512,17 @@
     window.addEventListener('popstate', updateHeader);
     window.addEventListener('bbl-nav', updateHeader);
     updateHeader();
+    // Framer re-renders the nav's className when it switches variant (phone
+    // hydration lands on "Mobile Close", not the SSR'd primary), which wipes
+    // our classes. Put them back whenever the class attribute changes without
+    // them; re-adding only when missing keeps this from looping.
+    new MutationObserver(function () {
+      if (!header.classList.contains('bbl-dark-header') &&
+          !header.classList.contains('bbl-light-header')) {
+        dbg('header class rewritten by Framer — re-applying');
+        updateHeader();
+      }
+    }).observe(header, { attributes: true, attributeFilter: ['class'] });
   }
 
   // Hide header when scrolling down past a cushion, show when scrolling up.
@@ -1561,5 +1598,16 @@
     // page forever.
     setTimeout(function () { headerWatch.disconnect(); }, 10000);
   }
+  // If Framer replaces the header element outright (hydration fallback /
+  // variant remount), everything above is bound to a detached node. Cheap
+  // contains() check per mutation batch; re-adopt only when it actually
+  // happened. (2026-09-07: phones lost the dark header + mobile links.)
+  new MutationObserver(function () {
+    if (headerInit && !document.documentElement.contains(headerInit)) {
+      dbg('header element replaced — re-adopting');
+      headerInit = null;
+      adoptHeader();
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
 
 })();
