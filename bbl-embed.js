@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.2';
+  var VERSION = '2026-09-07.3';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1305,8 +1305,9 @@
   // throws "Assertion Error: Original id must not be empty" and crashes the
   // project, because every variant layer must map to an original in the primary
   // (desktop) variant. So the mobile header is finished here at runtime:
-  //   - swap the one-line logo for bbls-text-2.png ("SOCIETY" wraps to a second
-  //     line) and narrow it to 150px. Framer sizes the logo by aspect-ratio on
+  //   - below STACKED_LOGO_MAX px swap the one-line logo for bbls-text-2.png
+  //     ("SOCIETY" wraps to a second line) and narrow it to 150px; wider phones
+  //     and tablets keep Framer's one-line logo. Framer sizes the logo by aspect-ratio on
   //     BOTH the instance container (10.8) and the Logo frame (11.3), so both are
   //     overridden below — with either left in place the second line clips to
   //     a 14px strip;
@@ -1322,17 +1323,21 @@
   // pass. Link colours come from the .bbl-dark-header / .bbl-light-header
   // rules above (they target every <a> in the header).
   var MOBILE_LOGO_URL = 'https://bodybylagree.vercel.app/bbls-text-2.png';
+  var STACKED_LOGO_MAX = 519; // px viewport width; wider keeps the one-line logo
+  var stackedLogoMQ = window.matchMedia('(max-width:' + STACKED_LOGO_MAX + 'px)');
   var mobileHeaderCSS = document.createElement('style');
   mobileHeaderCSS.textContent = ''
-    + '.bbl-mobile-header>div:first-child>div{width:150px!important;height:auto!important;aspect-ratio:auto!important}'
-    + '.bbl-mobile-header>div:first-child a{width:100%!important;height:auto!important;aspect-ratio:auto!important}'
-    + '.bbl-mobile-header [data-framer-name="Logo"]{aspect-ratio:956/180!important;height:auto!important}'
-    + '.bbl-mobile-header [data-framer-name="Logo"] img{width:100%!important;height:auto!important;object-fit:contain!important}'
-    + '.bbl-quick-links{display:flex;gap:14px;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:2px}'
-    + '.bbl-quick-links a{font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:14px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
-    // Narrow phones (iPhone SE class): shave the logo and the gaps so the row
-    // still fits without the hamburger spilling past the padding.
-    + '@media (max-width:340px){.bbl-mobile-header>div:first-child>div{width:132px!important}.bbl-quick-links{gap:10px}.bbl-quick-links a{font-size:13px}}';
+    // Two-line logo sizing, only while .bbl-logo-stacked is on the wrapper.
+    + '.bbl-logo-stacked>div:first-child>div{width:150px!important;height:auto!important;aspect-ratio:auto!important}'
+    + '.bbl-logo-stacked>div:first-child a{width:100%!important;height:auto!important;aspect-ratio:auto!important}'
+    + '.bbl-logo-stacked [data-framer-name="Logo"]{aspect-ratio:956/180!important;height:auto!important}'
+    + '.bbl-logo-stacked [data-framer-name="Logo"] img{width:100%!important;height:auto!important;object-fit:contain!important}'
+    // Quick links: roomy at tablet / wide-phone widths, tighter below the
+    // stacked-logo threshold, tighter still on iPhone SE-class screens.
+    + '.bbl-quick-links{display:flex;gap:32px;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:16px}'
+    + '.bbl-quick-links a{font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:16px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
+    + '@media (max-width:' + STACKED_LOGO_MAX + 'px){.bbl-quick-links{gap:22px;margin-right:8px}.bbl-quick-links a{font-size:14px}}'
+    + '@media (max-width:340px){.bbl-logo-stacked>div:first-child>div{width:132px!important}.bbl-quick-links{gap:12px;margin-right:4px}.bbl-quick-links a{font-size:13px}}';
   document.head.appendChild(mobileHeaderCSS);
 
   function enhanceMobileHeader(header) {
@@ -1341,11 +1346,26 @@
     var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
     if (!ham) return;
     wrap.classList.add('bbl-mobile-header');
+    var stacked = stackedLogoMQ.matches;
+    wrap.classList.toggle('bbl-logo-stacked', stacked);
     var img = wrap.querySelector('[data-framer-name="Logo"] img');
-    if (img && img.src !== MOBILE_LOGO_URL) {
-      img.removeAttribute('srcset');
-      img.removeAttribute('sizes');
-      img.src = MOBILE_LOGO_URL;
+    if (img) {
+      if (!img.dataset.bblOrigSrc) {
+        // Remember Framer's one-line logo so we can put it back when the
+        // viewport grows past the threshold (rotation, split view, resize).
+        img.dataset.bblOrigSrc = img.getAttribute('src') || '';
+        img.dataset.bblOrigSrcset = img.getAttribute('srcset') || '';
+        img.dataset.bblOrigSizes = img.getAttribute('sizes') || '';
+      }
+      if (stacked && img.src !== MOBILE_LOGO_URL) {
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+        img.src = MOBILE_LOGO_URL;
+      } else if (!stacked && img.src === MOBILE_LOGO_URL) {
+        img.setAttribute('src', img.dataset.bblOrigSrc);
+        if (img.dataset.bblOrigSrcset) img.setAttribute('srcset', img.dataset.bblOrigSrcset);
+        if (img.dataset.bblOrigSizes) img.setAttribute('sizes', img.dataset.bblOrigSizes);
+      }
     }
     if (!wrap.querySelector('.bbl-quick-links')) {
       var quick = document.createElement('div');
@@ -1527,6 +1547,9 @@
     enhanceMobileHeader(el);
     new MutationObserver(function () { enhanceMobileHeader(el); })
       .observe(el, { childList: true, subtree: true });
+    var onStackedChange = function () { enhanceMobileHeader(el); };
+    if (stackedLogoMQ.addEventListener) stackedLogoMQ.addEventListener('change', onStackedChange);
+    else stackedLogoMQ.addListener(onStackedChange);
     return true;
   }
   if (!adoptHeader()) {
