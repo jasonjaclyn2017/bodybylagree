@@ -1,0 +1,4 @@
+/* Hero typeface, self-hosted for Body By Lagree Society */
+@font-face{font-family:"Hero";src:url("https://bodybylagree.vercel.app/fonts/Hero-Light.woff2") format("woff2"),url("https://bodybylagree.vercel.app/fonts/Hero-Light.otf") format("opentype");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:"Hero";src:url("https://bodybylagree.vercel.app/fonts/Hero-Regular.woff2") format("woff2"),url("https://bodybylagree.vercel.app/fonts/Hero-Regular.otf") format("opentype");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Hero";src:url("https://bodybylagree.vercel.app/fonts/Hero-Bold.woff2") format("woff2"),url("https://bodybylagree.vercel.app/fonts/Hero-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
