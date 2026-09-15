@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-14.5';
+  var VERSION = '2026-09-14.6';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1309,7 +1309,17 @@
     + '.bbl-dark-header.bbl-wordmark-hidden:has(.bbl-mobile-header){background:transparent!important}'
     + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links{flex-direction:column;align-items:flex-end;gap:10px;margin-right:12px;position:relative;z-index:0}'
     + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links a{padding:2px 0}'
-    + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links::before{content:"";position:absolute;z-index:-1;top:-10px;bottom:-10px;left:-14px;right:-68px;background:rgba(0,0,0,0.6);border-radius:12px}'
+    + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links::before{content:"";position:absolute;z-index:-1;top:-10px;bottom:-10px;left:-8px;right:-68px;background:rgba(0,0,0,0.6);border-radius:12px}'
+    // Hamburger menu OPEN (Framer swaps in the "Mobile Open" variant, which is
+    // the header itself grown to full height): put the wash + blur back so the
+    // menu is legible over the hero, drop the quick links (the menu has them),
+    // and tighten the menu — Framer's variant has a 40px gap under the close
+    // row and 24px vertical padding per item, which pushed "Studio" well down
+    // and risked overflowing short phones. Class is set by syncMenuOpen().
+    + '.bbl-dark-header.bbl-menu-open.bbl-menu-open{background:rgba(0,0,0,0.6)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}'
+    + '.bbl-menu-open .bbl-quick-links{display:none!important}'
+    + '.bbl-menu-open [data-framer-name="Mobile Open"]{gap:12px!important}'
+    + '.bbl-menu-open [data-framer-name="Mobile Open"] [data-framer-name="Mobile Menu"] > div > div > div{padding-top:11px!important;padding-bottom:11px!important}'
     // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
     // logo-container ancestor (renders the source-black logo as white over
     // dark backdrops). At ≥1200 that filter is dropped. We need to compose
@@ -1522,7 +1532,13 @@
     }, 100);
   }
 
+  // Mirror Framer's open/closed nav variant as a class on the header so CSS can
+  // key off it (":has()" alone lost to the wordmark-hidden rules' ordering).
+  function syncMenuOpen(header) {
+    header.classList.toggle('bbl-menu-open', !!header.querySelector('[data-framer-name="Mobile Open"]'));
+  }
   function enhanceMobileHeader(header) {
+    syncMenuOpen(header);
     var wrap = header.querySelector('[data-framer-name="Logo and Hamburger"]');
     if (!wrap) return;
     var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
