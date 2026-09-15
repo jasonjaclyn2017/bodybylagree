@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-07.9';
+  var VERSION = '2026-09-14.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1281,6 +1281,21 @@
     // Two classes deep so it outranks .bbl-dark-header's !important.
     + '.bbl-dark-header.bbl-clear-header{background-color:transparent!important}'
     + '.bbl-dark-header p,.bbl-dark-header a{color:#fff!important}'
+    // Header type moves to Poppins (2026-09-14): the site is leaving Manrope
+    // section by section, starting with the Home hero. Framer sets the font
+    // per text node through --framer-font-family (inline), so the override
+    // has to be !important on the custom property as well as the shorthand.
+    + '.bbl-dark-header .framer-text,.bbl-light-header .framer-text,.bbl-dark-header p,.bbl-dark-header a,.bbl-light-header p,.bbl-light-header a'
+    +   '{--framer-font-family:"Poppins",Helvetica,Arial,sans-serif!important;font-family:"Poppins",Helvetica,Arial,sans-serif!important}'
+    // Home, scrolled to the very top: the hero's circular expanded logo
+    // (BBLHomeHero .bbl-brand) takes over, so the header's horizontal wordmark
+    // goes invisible. Toggled in initDarkHeader; gated on the hero being in
+    // the DOM so this is a no-op until that page version is published.
+    + '.bbl-wordmark-hidden [data-framer-name="Logo"] img{opacity:0!important}'
+    // ...and the header's dark wash fades out across its left third there, so
+    // the mark (which hangs below the header) is not cut by the bar. Two
+    // classes deep to outrank .bbl-dark-header's !important background.
+    + '.bbl-dark-header.bbl-wordmark-hidden{background:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 20%,rgba(0,0,0,0.6) 34%)!important}'
     // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
     // logo-container ancestor (renders the source-black logo as white over
     // dark backdrops). At ≥1200 that filter is dropped. We need to compose
@@ -1322,7 +1337,7 @@
     // background-color via inline style (set in initHideOnScrollDown alongside
     // transform) — inline wins over class rules so we set both there.
     + '.bbl-dark-header p,.bbl-dark-header a,.bbl-light-header p,.bbl-light-header a{transition:color .5s ease}'
-    + '.bbl-dark-header [data-framer-name="Logo"] img,.bbl-light-header [data-framer-name="Logo"] img{transition:filter .5s ease}'
+    + '.bbl-dark-header [data-framer-name="Logo"] img,.bbl-light-header [data-framer-name="Logo"] img{transition:filter .5s ease,opacity .25s ease}'
     + '.bbl-dark-header [data-border],.bbl-light-header [data-border]{transition:background-color .5s ease,box-shadow .5s ease}'
     + '.bbl-dark-header [data-framer-name="Wave"],.bbl-light-header [data-framer-name="Wave"]{transition:background-color .5s ease}'
     + '.bbl-dark-header [data-framer-name="Hamburger"] div:not(:has(*)),.bbl-light-header [data-framer-name="Hamburger"] div:not(:has(*)){transition:background-color .5s ease}'
@@ -1331,6 +1346,14 @@
     // bounce near scrollY=0). See initHideOnScrollDown for the show/hide rules.
     + '.bbl-header-hidden{transform:translateY(-100%)!important}';
   document.head.appendChild(darkHeaderCSS);
+  // Same id the Home hero component uses, so whichever runs first wins.
+  if (!document.getElementById('bbl-poppins')) {
+    var poppinsLink = document.createElement('link');
+    poppinsLink.id = 'bbl-poppins';
+    poppinsLink.rel = 'stylesheet';
+    poppinsLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap';
+    document.head.appendChild(poppinsLink);
+  }
 
   // --- Docked chat on /calendar and /pricing (2026-09-07) ---
   // Kenko's chat widget is a fixed iframe (widget.gokenko.com, z-index 2^31-1)
@@ -1461,7 +1484,7 @@
     // Quick links: roomy at tablet / wide-phone widths, tighter below the
     // stacked-logo threshold, tighter still on iPhone SE-class screens.
     + '.bbl-quick-links{display:flex;gap:32px;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:16px}'
-    + '.bbl-quick-links a{font-family:Manrope,"Manrope Placeholder",sans-serif;font-size:16px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
+    + '.bbl-quick-links a{font-family:"Poppins",Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;letter-spacing:-0.1px;text-decoration:none;white-space:nowrap}'
     + '@media (max-width:' + STACKED_LOGO_MAX + 'px){.bbl-quick-links{gap:22px;margin-right:8px}.bbl-quick-links a{font-size:14px}}'
     + '@media (max-width:340px){.bbl-logo-stacked>div:first-child>div{width:132px!important}.bbl-quick-links{gap:12px;margin-right:4px}.bbl-quick-links a{font-size:13px}}';
   document.head.appendChild(mobileHeaderCSS);
@@ -1489,7 +1512,16 @@
     var wrap = header.querySelector('[data-framer-name="Logo and Hamburger"]');
     if (!wrap) return;
     var ham = wrap.querySelector('[data-framer-name="Hamburger"]');
-    if (!ham) return;
+    if (!ham) {
+      // Desktop variant. Framer's desktop nav reuses the "Logo and Hamburger"
+      // wrapper, and React leaves our injected children alone when it swaps
+      // variants, so links added on a narrow viewport survive a resize back
+      // up and sit next to the real Schedule / Pricing (2026-09-14 report).
+      var stale = header.querySelectorAll('.bbl-quick-links');
+      for (var i = 0; i < stale.length; i++) stale[i].parentNode.removeChild(stale[i]);
+      wrap.classList.remove('bbl-mobile-header', 'bbl-logo-stacked');
+      return;
+    }
     // Never touch the header before React has hydrated it. Framer server-renders
     // the page and hydrates later; on phones (2026-09-07 report) our injected
     // links and logo swap landed in the SSR DOM first, hydration then rebuilt
@@ -1633,11 +1665,23 @@
           CLEAR_HEADER_PATHS.indexOf(normalizedPath()) !== -1 &&
           window.scrollY < CLEAR_HEADER_MAX_Y
       );
+      // Home at scrollY 0 (same 8px cushion the hero uses) with the v2 hero
+      // mounted: hide the wordmark, the circular mark below it is the logo.
+      header.classList.toggle(
+        'bbl-wordmark-hidden',
+        normalizedPath() === '/' &&
+          window.scrollY <= 8 &&
+          !!document.querySelector('.bhh-brand')
+      );
     }
     window.addEventListener('scroll', updateHeader, { passive: true });
     window.addEventListener('popstate', updateHeader);
     window.addEventListener('bbl-nav', updateHeader);
     updateHeader();
+    // The hero mounts after the header; re-evaluate the wordmark rule once it is there.
+    setTimeout(updateHeader, 100);
+    setTimeout(updateHeader, 500);
+    setTimeout(updateHeader, 1500);
     // Framer re-renders the nav's className when it switches variant (phone
     // hydration lands on "Mobile Close", not the SSR'd primary), which wipes
     // our classes. Put them back whenever the class attribute changes without
@@ -1711,6 +1755,7 @@
     new MutationObserver(function () { enhanceMobileHeader(el); })
       .observe(el, { childList: true, subtree: true });
     var onStackedChange = function () { enhanceMobileHeader(el); };
+    window.addEventListener('resize', function () { enhanceMobileHeader(el); });
     if (stackedLogoMQ.addEventListener) stackedLogoMQ.addEventListener('change', onStackedChange);
     else stackedLogoMQ.addListener(onStackedChange);
     return true;
