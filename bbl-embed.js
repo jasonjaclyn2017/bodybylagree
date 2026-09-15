@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-14.6';
+  var VERSION = '2026-09-14.7';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1704,9 +1704,18 @@
           !!document.querySelector('.bhh-brand')
       );
     }
+    // Client-side navigation into Home (e.g. from /calendar) fires bbl-nav before
+    // Framer mounts the hero, so the .bhh-brand probe fails and nothing re-checks:
+    // the circle logo showed with the wordmark still visible. Re-check on a short
+    // ladder after every route change, and when the hero announces its mount.
+    function updateHeaderSoon() {
+      updateHeader();
+      [60, 200, 500, 1000, 2000].forEach(function (ms) { setTimeout(updateHeader, ms); });
+    }
     window.addEventListener('scroll', updateHeader, { passive: true });
-    window.addEventListener('popstate', updateHeader);
-    window.addEventListener('bbl-nav', updateHeader);
+    window.addEventListener('popstate', updateHeaderSoon);
+    window.addEventListener('bbl-nav', updateHeaderSoon);
+    window.addEventListener('bbl-hero-mount', updateHeader);
     updateHeader();
     // The hero mounts after the header; re-evaluate the wordmark rule once it is there.
     setTimeout(updateHeader, 100);
