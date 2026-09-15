@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-14.7';
+  var VERSION = '2026-09-14.8';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1300,6 +1300,10 @@
     // which smears the mark even where the wash is transparent — drop it in
     // this state (the transparent left third has nothing to blur anyway).
     + '.bbl-dark-header.bbl-wordmark-hidden{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}'
+    // Framer's nav also has a faint box-shadow (0 1px 8px 3px, 10% black). With
+    // the wash gone it hung in mid-air under an invisible bar — most visible on
+    // phones, where the whole bar goes transparent (2026-09-15).
+    + '.bbl-dark-header.bbl-wordmark-hidden{box-shadow:none!important}'
     // Phone/tablet nav (hamburger variant) in that same top-of-Home state: the
     // full-width wash goes away entirely so the hero's mark + h1 own the top of
     // the page; Schedule / Pricing stack right-aligned against the hamburger,
