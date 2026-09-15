@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-14.2';
+  var VERSION = '2026-09-14.4';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1296,6 +1296,19 @@
     // the mark (which hangs below the header) is not cut by the bar. Two
     // classes deep to outrank .bbl-dark-header's !important background.
     + '.bbl-dark-header.bbl-wordmark-hidden{background:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 20%,rgba(0,0,0,0.6) 34%)!important}'
+    // Framer's nav also carries backdrop-filter:blur(10px) on the header box,
+    // which smears the mark even where the wash is transparent — drop it in
+    // this state (the transparent left third has nothing to blur anyway).
+    + '.bbl-dark-header.bbl-wordmark-hidden{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}'
+    // Phone/tablet nav (hamburger variant) in that same top-of-Home state: the
+    // full-width wash goes away entirely so the hero's mark + h1 own the top of
+    // the page; Schedule / Pricing stack right-aligned against the hamburger,
+    // and a rounded box sized to that cluster carries the dark wash instead.
+    // Box geometry: quick links are 8px from the 46px hamburger, which is 10px
+    // from the header's edge (measured on the phone variant, 2026-09-15).
+    + '.bbl-dark-header.bbl-wordmark-hidden:has(.bbl-mobile-header){background:transparent!important}'
+    + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links{flex-direction:column;align-items:flex-end;gap:2px;margin-right:12px;position:relative;z-index:0}'
+    + '.bbl-wordmark-hidden .bbl-mobile-header .bbl-quick-links::before{content:"";position:absolute;z-index:-1;top:-8px;bottom:-8px;left:-14px;right:-68px;background:rgba(0,0,0,0.6);border-radius:12px}'
     // Logo filters: at viewport <1200, Framer applies filter:invert(1) to a
     // logo-container ancestor (renders the source-black logo as white over
     // dark backdrops). At ≥1200 that filter is dropped. We need to compose
