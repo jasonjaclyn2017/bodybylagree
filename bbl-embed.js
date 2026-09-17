@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-14.8';
+  var VERSION = '2026-09-16.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1121,6 +1121,17 @@
       }
       // Iframe size likely changed — realign the intercept wrapper.
       repositionInterceptWrapper();
+      // Shrink correction — see correctScrollAfterShrink.
+      var newEmbedH = data.message && Number(typeof data.message === 'object' ? data.message.height : data.message);
+      if (!reloadInFlight && isFinite(newEmbedH)) {
+        var prevEmbedH = lastEmbedHeight;
+        lastEmbedHeight = newEmbedH;
+        if (prevEmbedH !== null && newEmbedH < prevEmbedH - SHRINK_MIN_DELTA) {
+          scheduleShrinkScrollFix(prevEmbedH, newEmbedH);
+        }
+      } else if (reloadInFlight) {
+        lastEmbedHeight = null;
+      }
     }
     if (data && data.type === 'RouteChanged' && data.message && typeof data.message.path === 'string') {
       lastIframeRoute = '#' + data.message.path;
@@ -1176,6 +1187,70 @@
       + '.bbl-intercept-debug .bbl-intercept{background:rgba(255,0,0,0.3);outline:1px dashed red}'
       + '.bbl-intercept-debug .bbl-intercept::after{content:attr(data-bbl-intercept);color:#fff;font:11px monospace;padding:2px 4px;background:rgba(0,0,0,0.7);position:absolute;top:0;left:0}';
     document.head.appendChild(s);
+  }
+
+  // --- Scroll correction when the Kenko iframe shrinks (2026-09-16.1) ---
+  // Kenko's wrapper sets the iframe's height attribute on every
+  // ReceiveMyHeight (message.height + 160). When the inner content gets
+  // SHORTER while the visitor is scrolled down into it — e.g. on
+  // #/class-detail/... they open "View pricing options" (long list, page
+  // grows, they scroll to Single Session) and pick a plan (list collapses)
+  // — the document shrinks and the browser clamps scrollY to the new max.
+  // What's left in the viewport is the footer; the iframe looks like it
+  // vanished. The route does not change, so this keys off the height
+  // message itself. Kenko's own fix was scrollIntoView on every route
+  // change, which we neutralised because it yanked the page on every nav.
+  //
+  // Rule: after the wrapper applies the new height, if the iframe's top is
+  // already scrolled under the header (visitor is inside it) and its bottom
+  // edge has come up to within SHRINK_KEEP_BELOW px of the fold, scroll up
+  // so exactly SHRINK_KEEP_BELOW px of iframe remain below the fold (the
+  // "Proceed to checkout" button sits ~200px above the iframe bottom).
+  // Never scroll the iframe's top below the header. Shrinks while the top
+  // of the iframe is still on screen are left alone — nothing was lost.
+  var SHRINK_MIN_DELTA = 40;   // px of inner shrink before we consider acting
+  var SHRINK_KEEP_BELOW = 150; // px of iframe to leave hidden below the fold
+  var lastEmbedHeight = null;
+  var shrinkFixRaf = 0;
+  function headerBottomPx() {
+    var h = findHeader();
+    if (!h) return 0;
+    var r = h.getBoundingClientRect();
+    return r.bottom > 0 && r.top <= 0 ? r.bottom : 0;
+  }
+  function correctScrollAfterShrink(prevH, newH) {
+    var iframe = getStudioyouIframe();
+    if (!iframe) return;
+    var r = iframe.getBoundingClientRect();
+    var headerBottom = headerBottomPx();
+    if (r.top >= headerBottom) {
+      dbg('shrink-fix: iframe top visible, no action', { prevH: prevH, newH: newH, top: r.top });
+      return;
+    }
+    var wantBottom = window.innerHeight + SHRINK_KEEP_BELOW;
+    if (r.bottom >= wantBottom) {
+      dbg('shrink-fix: enough iframe below fold, no action', { bottom: r.bottom });
+      return;
+    }
+    var y = window.scrollY;
+    var target = y + (r.bottom - wantBottom);        // put iframe bottom at fold + keep
+    var minY = y + r.top - headerBottom;             // never push iframe top below header
+    target = Math.max(target, minY, 0);
+    if (target >= y - 1) return;
+    dbg('shrink-fix: scrolling', { from: y, to: target, prevH: prevH, newH: newH, headerBottom: headerBottom });
+    try {
+      window.scrollTo({ top: target, behavior: 'smooth' });
+    } catch (_) {
+      window.scrollTo(0, target);
+    }
+  }
+  function scheduleShrinkScrollFix(prevH, newH) {
+    // Two frames: the wrapper's own listener sets the height attribute in
+    // the same message dispatch; layout must settle before we measure.
+    cancelAnimationFrame(shrinkFixRaf);
+    shrinkFixRaf = requestAnimationFrame(function () {
+      shrinkFixRaf = requestAnimationFrame(function () { correctScrollAfterShrink(prevH, newH); });
+    });
   }
 
   function getStudioyouIframe() {
