@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-16.1';
+  var VERSION = '2026-09-16.2';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -1209,7 +1209,12 @@
   // Never scroll the iframe's top below the header. Shrinks while the top
   // of the iframe is still on screen are left alone — nothing was lost.
   var SHRINK_MIN_DELTA = 40;   // px of inner shrink before we consider acting
-  var SHRINK_KEEP_BELOW = 150; // px of iframe to leave hidden below the fold
+  var SHRINK_KEEP_BELOW = 220; // px of iframe to leave hidden below the fold
+  var SHRINK_SCROLL_MS = 350;  // duration of the corrective scroll
+  // While a corrective scroll runs, the hide-on-scroll header must not
+  // read the upward motion as "user scrolled up" and slide in. Timestamp
+  // checked by initHideOnScrollDown's update().
+  var suppressHeaderShowUntil = 0;
   var lastEmbedHeight = null;
   var shrinkFixRaf = 0;
   function headerBottomPx() {
@@ -1238,11 +1243,20 @@
     target = Math.max(target, minY, 0);
     if (target >= y - 1) return;
     dbg('shrink-fix: scrolling', { from: y, to: target, prevH: prevH, newH: newH, headerBottom: headerBottom });
-    try {
-      window.scrollTo({ top: target, behavior: 'smooth' });
-    } catch (_) {
-      window.scrollTo(0, target);
+    suppressHeaderShowUntil = Date.now() + SHRINK_SCROLL_MS + 150;
+    animateScrollTo(target, SHRINK_SCROLL_MS);
+  }
+  var scrollAnimRaf = 0;
+  function animateScrollTo(target, ms) {
+    cancelAnimationFrame(scrollAnimRaf);
+    var startY = window.scrollY, t0 = performance.now();
+    function step(now) {
+      var k = Math.min(1, (now - t0) / ms);
+      var eased = 1 - Math.pow(1 - k, 3); // ease-out cubic
+      window.scrollTo(0, startY + (target - startY) * eased);
+      if (k < 1) scrollAnimRaf = requestAnimationFrame(step);
     }
+    scrollAnimRaf = requestAnimationFrame(step);
   }
   function scheduleShrinkScrollFix(prevH, newH) {
     // Two frames: the wrapper's own listener sets the height attribute in
@@ -1833,7 +1847,7 @@
         header.classList.remove('bbl-header-hidden');
       } else if (dy > DELTA_THRESHOLD) {
         header.classList.add('bbl-header-hidden');
-      } else if (dy < -DELTA_THRESHOLD) {
+      } else if (dy < -DELTA_THRESHOLD && Date.now() >= suppressHeaderShowUntil) {
         header.classList.remove('bbl-header-hidden');
       }
       lastY = y;
