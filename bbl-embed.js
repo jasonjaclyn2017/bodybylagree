@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-16.2';
+  var VERSION = '2026-09-29.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -74,7 +74,9 @@
     '38907': 'eight_3mo', '38911': 'twelve_3mo', '38947': 'unlimited_3mo',
     '38498': 'eight_flex', '38945': 'twelve_flex', '38946': 'unlimited_flex',
     '38964': 'eight_pif', '38966': 'twelve_pif',
-    '33348': 'sauna_1', '33349': 'sauna_3', '39295': 'sauna_unlimited'
+    '33348': 'sauna_1', '33349': 'sauna_3', '39295': 'sauna_unlimited',
+    // October 2026 promos (/pricing Halloween band, /intro-oct)
+    '40397': 'shakes_13', '40400': 'boo_go'
   };
   function kenkoPlan(url) {
     var m = String(url).match(/[?&]id=(\d+)/);
@@ -215,7 +217,7 @@
           }
         });
       }, { threshold: 0.3 });
-      ['iv-what', 'iv-offers', 'iv-look', 'i3-slow', 'i3-coach', 'i3-start', 'i3-look'].forEach(function (id) {
+      ['iv-what', 'iv-offers', 'iv-look', 'i3-slow', 'i3-coach', 'i3-oct', 'i3-start', 'i3-look'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) io.observe(el);
       });
