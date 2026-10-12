@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-09-29.1';
+  var VERSION = '2026-10-11.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -75,6 +75,8 @@
     '38498': 'eight_flex', '38945': 'twelve_flex', '38946': 'unlimited_flex',
     '38964': 'eight_pif', '38966': 'twelve_pif',
     '33348': 'sauna_1', '33349': 'sauna_3', '39295': 'sauna_unlimited',
+    // October 2026 repricing: The Four (3/6-month) + sauna 2-pack (3-pack retired)
+    '39139': 'four_3mo', '40731': 'four_6mo', '40730': 'sauna_2',
     // October 2026 promos (/pricing Halloween band, /intro-oct)
     '40397': 'shakes_13', '40400': 'boo_go'
   };
