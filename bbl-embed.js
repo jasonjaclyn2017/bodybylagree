@@ -1,7 +1,7 @@
 (function () {
   // Bump this on every change so we can confirm in the browser console which
   // version Vercel is serving. Check with `bblVersion` in any tab's console.
-  var VERSION = '2026-10-11.1';
+  var VERSION = '2026-10-15.1';
   window.bblVersion = VERSION;
   console.log('[bbl-embed] version ' + VERSION);
 
@@ -208,6 +208,19 @@
 
     // intro_section_view — once per section per pageview, at 30% visibility.
     // Answers "how far down the pitch do people get" as a GA funnel.
+    // Observing starts at the visitor's first scroll, not at load
+    // (2026-10-15): the /intro-athlete hero is shorter than the screen on big
+    // phones and tablets, so 30%+ of its second section is showing on arrival,
+    // and an at-load observer fired section_view + ViewContent for visitors
+    // who never moved. /intro's hero leaves under 15% showing, so nothing
+    // changes there; a CTA's smooth scroll counts as the first scroll.
+    function afterFirstScroll(fn) {
+      if (window.scrollY > 0) return fn();
+      window.addEventListener('scroll', function once() {
+        window.removeEventListener('scroll', once);
+        fn();
+      }, { passive: true });
+    }
     function watchSections() {
       var seen = {};
       var io = new IntersectionObserver(function (entries) {
@@ -227,7 +240,7 @@
     // Component mounts after Framer hydration — poll briefly for the sections
     var tries = 0;
     (function arm() {
-      if (document.getElementById('iv-offers') || document.getElementById('i3-start')) return watchSections();
+      if (document.getElementById('iv-offers') || document.getElementById('i3-start')) return afterFirstScroll(watchSections);
       if (++tries < 60) setTimeout(arm, 500);
     })();
   })();
